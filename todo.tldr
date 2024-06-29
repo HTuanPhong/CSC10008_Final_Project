@@ -43,9 +43,9 @@
 		{
 			"id": "pointer:pointer",
 			"typeName": "pointer",
-			"x": 279.5532595698586,
-			"y": 206.0180497564828,
-			"lastActivityTimestamp": 1719423815696,
+			"x": 1523.5643559939526,
+			"y": 195.1131350639131,
+			"lastActivityTimestamp": 1719588814000,
 			"meta": {}
 		},
 		{
@@ -75,8 +75,8 @@
 			"screenBounds": {
 				"x": 0,
 				"y": 0,
-				"w": 903.6000366210938,
-				"h": 636
+				"w": 937.2000122070312,
+				"h": 585.6000366210938
 			},
 			"insets": [
 				false,
@@ -104,10 +104,10 @@
 			"typeName": "instance"
 		},
 		{
-			"editingShapeId": "shape:TGq1ukZTTXhHl3Ug6m1st",
+			"editingShapeId": "shape:pnR6Oh_9EWPHBTPVDHAIx",
 			"croppingShapeId": null,
 			"selectedShapeIds": [
-				"shape:TGq1ukZTTXhHl3Ug6m1st"
+				"shape:pnR6Oh_9EWPHBTPVDHAIx"
 			],
 			"hoveredShapeId": null,
 			"erasingShapeIds": [],
@@ -119,9 +119,9 @@
 			"typeName": "instance_page_state"
 		},
 		{
-			"x": 337.5695659129382,
-			"y": 331.6127224658991,
-			"z": 0.6238831174423382,
+			"x": -462.3682449289672,
+			"y": 299.5971753455089,
+			"z": 0.8186988623207662,
 			"meta": {},
 			"id": "camera:page:page",
 			"typeName": "camera"
@@ -389,8 +389,8 @@
 			"typeName": "shape"
 		},
 		{
-			"x": 539.1140975952148,
-			"y": 71.09374847412116,
+			"x": 355.8171817886667,
+			"y": -238.2161031196459,
 			"rotation": 0,
 			"isLocked": false,
 			"opacity": 1,
@@ -400,8 +400,8 @@
 			"props": {
 				"color": "black",
 				"size": "m",
-				"w": 1012.206298828125,
-				"text": "cool findings:\nAsynchronous Server is faster than Threaded Server.\nBlocking socket is slower than non-blocking.\nThe idea of package doesnt exist in TCP stream unlike UDP (Data can fragment!!).\nYou cant multithread a single file operation (send,write).\nNetwork use big endian.\nfc.exe \\b \"path1\" \"path2\" to compare 2 files.\nhttps://en.wikipedia.org/wiki/Berkeley_sockets\n\nconclusion: so threaded server for multi client and multi file.",
+				"w": 1938.5313720703125,
+				"text": "cool findings:\n-Multiplexing Server is faster than Threaded Server.\n-Blocking socket is slower than non-blocking.\n-The idea of package doesnt exist in TCP stream unlike UDP (Data can fragment!!).\n-Splits files into several sections and downloads them simultaneously won't help in 1 client 1 server case.\n-Network use big endian.\n-fc.exe \\b \"path1\" \"path2\" to compare 2 files.\n-https://en.wikipedia.org/wiki/Berkeley_sockets\n\nconclusion: why threaded file chunk ? -> bandwidth-delay product | TCP congestion control https://www2.eecs.berkeley.edu/Pubs/TechRpts/1997/5838.html\n\ngood reads:\nhttps://www.kegel.com/c10k.html (our program is on section 4 which is not good.) (might fix)",
 				"font": "draw",
 				"textAlign": "start",
 				"autoSize": true,
@@ -702,8 +702,8 @@
 			"typeName": "shape"
 		},
 		{
-			"x": -277.5822378273847,
-			"y": 62.740937419373665,
+			"x": -705.8719047884615,
+			"y": -18.98623658866842,
 			"rotation": 0,
 			"isLocked": false,
 			"opacity": 1,
@@ -713,8 +713,8 @@
 			"props": {
 				"color": "black",
 				"size": "m",
-				"w": 667.675048828125,
-				"text": "weird stuff at 2am:\nQUIC gonna replace TCP anyway why am i doing this.\nhttps://github.com/schollz/croc/issues/602\nmultiple socket will not! speed up tcp transfer.",
+				"w": 862.206298828125,
+				"text": "weird stuff at 2am:\n-QUIC gonna replace TCP anyway why am i doing this.\n-https://github.com/schollz/croc/issues/602\n-multiple socket will not! speed up tcp transfer.\n-tkinter called parent/child model Master/Slave old software classic.",
 				"font": "draw",
 				"textAlign": "start",
 				"autoSize": true,

@@ -3,8 +3,8 @@
 import os
 import socket
 from socket import (
-    AF_INET,  # INER mean ipv4
-    SOCK_STREAM,  # Stream mean TCP
+    AF_INET,  # mean ipv4
+    SOCK_STREAM,  # mean TCP
     SHUT_RDWR,  # stop read write
 )
 from threading import Thread
@@ -40,6 +40,7 @@ def handle_upload(sock):
     file_path = recv_msg(sock).decode("utf-8")
     local_file_path = os.path.join(SERVER_DATA_PATH, file_path)
     recv_file(sock, local_file_path)
+    print("DONE")
 
 
 def handle_download(sock):
@@ -97,28 +98,33 @@ def stop_server():
     accept_thread.join()
 
 
-def start_server(host, port):
+def start_server(port):
     """Start the server and thread."""
-    server.bind((host, port))
+    host = socket.gethostbyname(socket.gethostname())
+    server.bind(("", port))
     server.listen()
-    print(f"[INFO] Listening on {socket.gethostbyname(socket.gethostname())}:{port}")
+    print(f"[INFO] Listening on {host}:{port}")
     accept_thread.start()
 
 
 # global constants:
 SERVER_DATA_PATH = "server"
 
-# global variable: (python have no c like struct imagine.....)
+# global variables: (should have use class but i couldn't care less)
 server = socket.socket(AF_INET, SOCK_STREAM)
 accept_thread = Thread(target=handle_incoming_connections)
 clients = {}
 
 # program flow:
-window = tk.Tk()
-window.title("Server")
+root = tk.Tk()
+root.title("Server")
 
+mainframe = ttk.Frame(root)
+mainframe.grid(column=0, row=0)
 
-start_server("localhost", 2024)
-window.mainloop()
+ttk.Label(mainframe, text="Name:").grid(column=0, row=0, padx=5, pady=5)
+
+start_server(2024)
+root.mainloop()
 stop_server()
 print("[INFO] Finished")

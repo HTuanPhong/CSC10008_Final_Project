@@ -1,12 +1,18 @@
-A school project about file management program over socket. Using TCP length prefix messages with client-server model
+A simple school project about file management program over socket. Using TCP length prefix messages with client-server model
 
-## Features
+## "Features"
 
 
 - Unsecure zero encryption.
 - Cross-platform.
 - Only ipv4.
 - Doesn't compress data.
+
+## Project requirements
+
+- GUI
+- Thread to split file ?!?!?
+- Download/upload
 
 ## Run
 Python 3.5 or above is required.
