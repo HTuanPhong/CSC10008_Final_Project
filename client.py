@@ -1,9 +1,9 @@
 """Client main"""
 
 import os
+import struct
 from socket import AF_INET, socket, SOCK_STREAM, SHUT_RDWR  # Stream mean TCP
-from modules.message import recv_msg, send_msg, recv_file, send_file
-
+import modules.request as req
 
 HOST = "127.0.0.1"  # IP adress server
 PORT = 2024  # Port is used by the server
@@ -14,15 +14,25 @@ CLIENT = socket(AF_INET, SOCK_STREAM)
 print("[c] Connecting...")
 CLIENT.connect((HOST, PORT))
 
+file_name = "bigo.png"
+MSG = (
+    struct.pack(">B", 6)  # , len(file_name))
+    # + file_name.encode("utf-8")
+    # + struct.pack(">QQ", 0, 1364554)
+    # + "LMAO!".encode("utf-8")
+)
+CLIENT.sendall(MSG)
+# with open("client/bigo.png", "rb") as f:
+#     CLIENT.sendfile(f)
 
-MSG = "UPLOAD"
-send_msg(CLIENT, MSG.encode(FORMAT))
-
-FILE_NAME = "Sega Genesis (Mega Drive) & Sega 32X Complete Romset.zip"
-send_msg(CLIENT, FILE_NAME.encode(FORMAT))
-
-file_path = os.path.join("client", FILE_NAME)
-send_file(CLIENT, file_path)
+REC = req.recv_all(CLIENT, 1)
+a = struct.unpack(">B", REC)[0]
+print(a)
+REC = req.recv_all(CLIENT, 4)
+a = struct.unpack(">I", REC)[0]
+print(a)
+REC = req.recv_all(CLIENT, a)
+print(REC.decode("utf-8"))
 
 print("[c] Quitting...")
 CLIENT.close()

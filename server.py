@@ -10,7 +10,7 @@ from socket import (
 from threading import Thread
 import tkinter as tk
 from tkinter import ttk
-from modules.message import recv_msg, send_msg, recv_file, send_file
+import modules.request as req
 
 
 def handle_incoming_connections():
@@ -18,113 +18,74 @@ def handle_incoming_connections():
 
     while True:
         try:
-            client_socket, (client_host, client_port) = server.accept()
-            print(f"[INFO] {client_host}:{client_port} has connected.")
-            client_thread = Thread(target=handle_client, args=(client_socket,))
-            clients[client_socket] = {
-                "address": (client_host, client_port),
-                "thread": client_thread,
-                "name": f"{client_host}_{client_port}",  # maybe let client choose own name
+            request_socket, (request_host, request_port) = server.accept()
+            request_socket.settimeout(30)
+            print(f"[INFO] {request_host}:{request_port} has connected.")
+            request_thread = Thread(
+                target=handle_request, args=(request_socket,), daemon=True
+            )
+            requests[request_socket] = {
+                # "address": (request_host, request_port),
+                "thread": request_thread,
+                "name": f"{request_host}:{request_port}",
             }
-            client_thread.start()
+            request_thread.start()
         except OSError:
             break
 
-    for client, info in clients.copy().items():
-        client.shutdown(SHUT_RDWR)
+    for request, info in requests.copy().items():
+        request.shutdown(SHUT_RDWR)
         info["thread"].join()
 
 
-def handle_upload(sock):
-    """Handles the upload request from client."""
-    file_path = recv_msg(sock).decode("utf-8")
-    local_file_path = os.path.join(SERVER_DATA_PATH, file_path)
-    recv_file(sock, local_file_path)
-    print("DONE")
-
-
-def handle_download(sock):
-    """Handles the upload request from client."""
-    file_path = recv_msg(sock).decode("utf-8")
-    local_file_path = os.path.join(SERVER_DATA_PATH, file_path)
-    if os.path.isfile(local_file_path):
-        send_file(sock, local_file_path)
-
-
-def handle_delete(sock):
-    """Handles the delete request from client."""
-    file_path = recv_msg(sock).decode("utf-8")
-    local_file_path = os.path.join(SERVER_DATA_PATH, file_path)
-    if os.path.isfile(local_file_path):
-        os.remove(local_file_path)
-
-
-def handle_list(sock):
-    """Handles the list request from client."""
-    files = os.listdir(SERVER_DATA_PATH)
-    send_msg(sock, "\n".join(f for f in files).encode("utf-8"))  # consider os.walk()
-
-
-def handle_client(sock):
-    """Handles a single client connection."""
-    name = clients[sock]["name"]
-    while True:
-        try:
-            req = recv_msg(sock).decode("utf-8")
-            if req == "LIST":
-                handle_list(sock)
-            elif req == "UPLOAD":
-                handle_upload(sock)
-            elif req == "DOWNLOAD":
-                handle_download(sock)
-            elif req == "DELETE":
-                handle_delete(sock)
-            elif req == "QUIT":
-                break
-            else:
-                send_msg(sock, "unknown request".encode("utf-8"))
-        except OSError as e:
-            print(f"[WARNING] {name} OSError occurred:", e)
-            break
+def handle_request(sock):
+    """Handles a single request connection."""
+    name = requests[sock]["name"]
+    try:
+        req.process_request(sock)
+    except OSError as e:
+        print(f"[WARNING] {name} OSError occurred:", e)
 
     sock.close()
-    print(f"[INFO] {name} has disconnected.")
-    del clients[sock]
+    print(f"[INFO] {name} has finished.")
+    del requests[sock]
 
 
 def stop_server():
     "Stop server properly."
+    print("[INFO] Closing server...")
     server.close()
     accept_thread.join()
 
 
-def start_server(port):
+def start_server():
     """Start the server and thread."""
-    host = socket.gethostbyname(socket.gethostname())
-    server.bind(("", port))
+    server.bind(("", PORT))
     server.listen()
-    print(f"[INFO] Listening on {host}:{port}")
+    print(f"[INFO] Listening on port {PORT}")
     accept_thread.start()
 
 
-# global constants:
+# global variables: (should have use class but server is a singleton anyway.)
 SERVER_DATA_PATH = "server"
-
-# global variables: (should have use class but i couldn't care less)
+PORT = 2024
 server = socket.socket(AF_INET, SOCK_STREAM)
-accept_thread = Thread(target=handle_incoming_connections)
-clients = {}
+accept_thread = Thread(target=handle_incoming_connections, daemon=True)
+requests = {}
 
-# program flow:
-root = tk.Tk()
-root.title("Server")
+if __name__ == "__main__":
+    # program flow:
+    MainWindow = tk.Tk()
+    MainWindow.title("Server")
+    MainWindow.minsize(width=500, height=400)
 
-mainframe = ttk.Frame(root)
-mainframe.grid(column=0, row=0)
+    top_frame = ttk.Frame(MainWindow)
+    top_frame.grid(column=0, row=0)
 
-ttk.Label(mainframe, text="Name:").grid(column=0, row=0, padx=5, pady=5)
+    ttk.Label(top_frame, text="Name:").grid(column=0, row=0, padx=5, pady=5)
 
-start_server(2024)
-root.mainloop()
-stop_server()
-print("[INFO] Finished")
+    start_server()
+    MainWindow.mainloop()
+    stop_server()
+
+    print("[INFO] Finished")
