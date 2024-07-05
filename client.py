@@ -3,12 +3,12 @@
 from socket import AF_INET, socket, SOCK_STREAM  # Stream mean TCP
 import modules.message as msg
 
-HOST = "192.168.1.11"  # IP adress server
+HOST = "172.0.0.1"  # IP adress server
 PORT = 1234  # Port is used by the server
 ADDR = (HOST, PORT)
 FORMAT = "utf-8"
 
-file_path = "random_server.txt"  # the file is in sane dir as server chosen root
+file_path = "random_server.txt"  # the file is in same dir as server chosen root
 local_file_path = "random.txt"  # the file is in same dir as client.py
 # remember these path are not the same
 # first is a request to upload to server
