@@ -33,40 +33,20 @@ import struct  # for packing bytes
 import os  # for directory operation
 import shutil  # for disk size
 import json  # to send directory
-from server import SERVER_DATA_PATH
+from modules.shared import *
 
-RRQ, WRQ, DRRQ, DWRQ, FWRQ, DRQ, DTRQ, FRQ = range(8)
-ERROR, SUCC = range(2)
-MAX_BUF = 65536
-
-
-def recv_data(sock, file_path, offset, count):
-    """receive data and write to file"""
-    total_written = 0
-    buffer = bytearray(MAX_BUF)
-    view = memoryview(buffer)
-    with open(file_path, "r+b") as f:
-        f.seek(offset)
-        while total_written < count:
-            read_size = min(count - total_written, MAX_BUF)
-            received = sock.recv_into(view[:read_size])
-            if not received:
-                raise OSError("Other side abruptly disconnected.")
-            total_written += received
-            f.write(view[:received])
+SERVER_DATA_PATH = ""
+log = print
 
 
-def recv_all(sock, n):
-    """recv n bytes or return except if EOF is hit."""
-    data = bytearray(n)
-    view = memoryview(data)
-    total_received = 0
-    while total_received < n:
-        received = sock.recv_into(view[total_received:], n - total_received)
-        if not received:
-            raise OSError("Other side abruptly disconnected.")
-        total_received += received
-    return data
+def set_log_method(func):
+    global log
+    log = func
+
+
+def set_server_data_path(path):
+    global SERVER_DATA_PATH
+    SERVER_DATA_PATH = path
 
 
 def get_path(sock):
@@ -84,7 +64,7 @@ def get_path(sock):
     return local_file_path
 
 
-def send_error(sock, msg):
+def send_error(sock, ip, msg):
     """send ERROR message reply.
     message length limit: 255 letters.
 
@@ -96,9 +76,10 @@ def send_error(sock, msg):
     """
     data = msg.encode("utf-8")
     sock.sendall(struct.pack(">BB", ERROR, len(data)) + data)
+    log(f"[INFO]: {ip} got an error: {msg}")
 
 
-def process_RRQ(sock):
+def process_RRQ(sock, ip):
     """process read request.
     Receive structure:
        1 bytes      1 byte       n bytes
@@ -111,19 +92,21 @@ def process_RRQ(sock):
     |   Opcode   |   FileSize   |
      ---------------------------
     """
+    log(f"[INFO]: {ip} sent a {OP_STR[RRQ]}.")
     file_path = get_path(sock)
     if not file_path:
-        send_error(sock, "invalid file path.")
+        send_error(sock, ip, "invalid file path.")
         return
     try:
         size = os.stat(file_path).st_size
     except OSError as e:
-        send_error(sock, str(e))
+        send_error(sock, ip, str(e))
         return
     sock.sendall(struct.pack(">BQ", SUCC, size))
+    log(f"[INFO]: {ip} got a success on {OP_STR[RRQ]}")
 
 
-def process_WRQ(sock):
+def process_WRQ(sock, ip):
     """process write request.
     Receive structure:
        1 bytes      1 byte       n bytes        8 bytes
@@ -136,28 +119,30 @@ def process_WRQ(sock):
     |   Opcode   |
      ------------
     """
+    log(f"[INFO]: {ip} sent a {OP_STR[WRQ]}.")
     file_path = get_path(sock)
     file_size = struct.unpack(">Q", recv_all(sock, 8))[0]
     if not file_path:
-        send_error(sock, "invalid file path.")
+        send_error(sock, ip, "invalid file path.")
         return
     if os.path.isfile(file_path):
-        send_error(sock, "file already exist.")
+        send_error(sock, ip, "file already exist.")
         return
     if shutil.disk_usage(SERVER_DATA_PATH)[2] < file_size:
-        send_error(sock, "server diskspace full.")
+        send_error(sock, ip, "server diskspace full.")
         return
     file_upload_path = file_path + ".uploading"
     if os.path.isfile(file_upload_path):
-        send_error(sock, "file already uploading.")
+        send_error(sock, ip, "file already uploading.")
         return
     with open(file_upload_path, "wb") as f:
         f.seek(file_size - 1)
         f.write(b"\0")
     sock.sendall(struct.pack(">B", SUCC))
+    log(f"[INFO]: {ip} got a success on {OP_STR[WRQ]}")
 
 
-def process_DRRQ(sock):
+def process_DRRQ(sock, ip):
     """process data read request.
     Receive structure:
        1 bytes      1 byte       n bytes        8 bytes      8 bytes
@@ -170,28 +155,30 @@ def process_DRRQ(sock):
     |   Opcode   |       Data       |
      -------------------------------
     """
+    log(f"[INFO]: {ip} sent a {OP_STR[DRRQ]}.")
     file_path = get_path(sock)
     offset, length = struct.unpack(">QQ", recv_all(sock, 16))
     if not file_path:
-        send_error(sock, "invalid file path.")
+        send_error(sock, ip, "invalid file path.")
         return
     try:
         file_size = os.stat(file_path).st_size
     except OSError as e:
-        send_error(sock, str(e))
+        send_error(sock, ip, str(e))
         return
     if offset > file_size - 1:
-        send_error(sock, "offset too large.")
+        send_error(sock, ip, "offset too large.")
         return
     if offset + length > file_size:
-        send_error(sock, "out of range.")
+        send_error(sock, ip, "out of range.")
         return
     with open(file_path, "rb") as f:
         sock.sendall(struct.pack(">B", SUCC))
         sock.sendfile(f, offset, length)
+    log(f"[INFO]: {ip} got a success on {OP_STR[DRRQ]}")
 
 
-def process_DWRQ(sock):
+def process_DWRQ(sock, ip):
     """process data write request
        1 bytes      1 byte       n bytes        8 bytes      8 bytes      n bytes
      -----------------------------------------------------------------------------
@@ -203,28 +190,30 @@ def process_DWRQ(sock):
     |   Opcode   |
      ------------
     """
+    log(f"[INFO]: {ip} sent a {OP_STR[DWRQ]}.")
     file_path = get_path(sock)
     offset, data_length = struct.unpack(">QQ", recv_all(sock, 16))
     if not file_path:
-        send_error(sock, "invalid file path.")
+        send_error(sock, ip, "invalid file path.")
         return
     file_upload_path = file_path + ".uploading"
     try:
         file_upload_size = os.stat(file_upload_path).st_size
     except OSError as e:
-        send_error(sock, str(e))
+        send_error(sock, ip, str(e))
         return
     if offset > file_upload_size - 1:
-        send_error(sock, "offset too large.")
+        send_error(sock, ip, "offset too large.")
         return
     if offset + data_length > file_upload_size:
-        send_error(sock, "out of range.")
+        send_error(sock, ip, "out of range.")
         return
     recv_data(sock, file_upload_path, offset, data_length)
     sock.sendall(struct.pack(">B", SUCC))
+    log(f"[INFO]: {ip} got a success on {OP_STR[DWRQ]}")
 
 
-def process_FWRQ(sock):
+def process_FWRQ(sock, ip):
     """process finish write request
     Receive structure:
        1 bytes      1 byte       n bytes
@@ -237,21 +226,23 @@ def process_FWRQ(sock):
     |   Opcode   |
      ------------
     """
+    log(f"[INFO]: {ip} sent a {OP_STR[FWRQ]}.")
     file_path = get_path(sock)
     if not file_path:
-        send_error(sock, "invalid file path.")
+        send_error(sock, ip, "invalid file path.")
         return
     file_upload_path = file_path + ".uploading"
     new_file_path = os.path.splitext(file_upload_path)[0]
     try:
         os.rename(file_upload_path, new_file_path)
     except OSError as e:
-        send_error(sock, str(e))
+        send_error(sock, ip, str(e))
         return
     sock.sendall(struct.pack(">B", SUCC))
+    log(f"[INFO]: {ip} got a success on {OP_STR[FWRQ]}")
 
 
-def process_DRQ(sock):
+def process_DRQ(sock, ip):
     """process delete request
     Receive structure:
        1 bytes      1 byte       n bytes
@@ -264,9 +255,10 @@ def process_DRQ(sock):
     |   Opcode   |
      ------------
     """
+    log(f"[INFO]: {ip} sent a {OP_STR[DRQ]}.")
     path = get_path(sock)
     if not path:
-        send_error(sock, "invalid file path.")
+        send_error(sock, ip, "invalid file path.")
         return
     try:
         if os.path.isfile(path):
@@ -274,12 +266,13 @@ def process_DRQ(sock):
         elif os.path.isdir(path):
             os.rmdir(path)
     except OSError as e:
-        send_error(sock, str(e))
+        send_error(sock, ip, str(e))
         return
     sock.sendall(struct.pack(">B", SUCC))
+    log(f"[INFO]: {ip} got a success on {OP_STR[DRQ]}")
 
 
-def process_DTRQ(sock):
+def process_DTRQ(sock, ip):
     """process directory request
     Receive structure:
        1 bytes
@@ -292,6 +285,7 @@ def process_DTRQ(sock):
     |   Opcode   |   Length   |   Json data   |
      -----------------------------------------
     """
+    log(f"[INFO]: {ip} sent a {OP_STR[DTRQ]}.")
     directory_structure = {}
     for root, dirs, files in os.walk(SERVER_DATA_PATH):
         relative_path = os.path.relpath(root, SERVER_DATA_PATH)
@@ -299,9 +293,10 @@ def process_DTRQ(sock):
     data = json.dumps(directory_structure).encode("utf-8")
     sock.sendall(struct.pack(">BI", SUCC, len(data)))
     sock.sendall(data)
+    log(f"[INFO]: {ip} got a success on {OP_STR[DTRQ]}")
 
 
-def process_FRQ(sock):
+def process_FRQ(sock, ip):
     """process folder request
     Receive structure:
        1 bytes      1 byte       n bytes
@@ -314,92 +309,41 @@ def process_FRQ(sock):
     |   Opcode   |
      ------------
     """
+    log(f"[INFO]: {ip} sent a {OP_STR[FRQ]}.")
     path = get_path(sock)
     if not path:
-        send_error(sock, "invalid file path.")
+        send_error(sock, ip, "invalid file path.")
         return
     try:
         os.mkdir(path)
     except OSError as e:
-        send_error(sock, str(e))
+        send_error(sock, ip, str(e))
         return
     sock.sendall(struct.pack(">B", SUCC))
+    log(f"[INFO]: {ip} got a success on {OP_STR[FRQ]}")
 
 
-def process_request(sock):
+def process_request(sock, ip):
     """
     Take a socket and read the first byte for request type (opcode).
     """
     req = struct.unpack(">B", recv_all(sock, 1))[0]
     if req == RRQ:
-        process_RRQ(sock)
+        process_RRQ(sock, ip)
     elif req == WRQ:
-        process_WRQ(sock)
+        process_WRQ(sock, ip)
     elif req == DRRQ:
-        process_DRRQ(sock)
+        process_DRRQ(sock, ip)
     elif req == DWRQ:
-        process_DWRQ(sock)
+        process_DWRQ(sock, ip)
     elif req == FWRQ:
-        process_FWRQ(sock)
+        process_FWRQ(sock, ip)
     elif req == DRQ:
-        process_DRQ(sock)
+        process_DRQ(sock, ip)
     elif req == DTRQ:
-        process_DTRQ(sock)
+        process_DTRQ(sock, ip)
     elif req == FRQ:
-        process_FRQ(sock)
+        process_FRQ(sock, ip)
     else:
-        send_error(sock, "unknown request.")
-
-
-def send_RRQ(sock, file_path):
-    """send Read request"""
-    sock.sendall(struct.pack(">BB", RRQ, len(file_path)) + file_path.encode("utf-8"))
-
-
-def send_WRQ(sock, file_path, size):
-    """send Write request"""
-    sock.sendall(
-        struct.pack(">BB", WRQ, len(file_path))
-        + file_path.encode("utf-8")
-        + struct.pack(">Q", size)
-    )
-
-
-def send_DRRQ(sock, file_path, offset, count):
-    """send Data read request"""
-    sock.sendall(
-        struct.pack(">BB", DRRQ, len(file_path))
-        + file_path.encode("utf-8")
-        + struct.pack(">QQ", offset, count)
-    )
-
-
-def send_DWRQ(sock, file_path, offset, length, local_file_path):
-    """send Data write request"""
-    sock.sendall(
-        struct.pack(">BB", DWRQ, len(file_path))
-        + file_path.encode("utf-8")
-        + struct.pack(">QQ", offset, length)
-    )
-    with open(local_file_path, "rb") as f:
-        sock.sendfile(f, offset, length)
-
-
-def send_FWRQ(sock, file_path):
-    """send Finish write request"""
-    sock.sendall(struct.pack(">BB", FWRQ, len(file_path)) + file_path.encode("utf-8"))
-
-
-def send_DRQ(sock, file_path):
-    """send Delete request"""
-    sock.sendall(struct.pack(">BB", DRQ, len(file_path)) + file_path.encode("utf-8"))
-
-
-def send_DTRQ(sock):
-    """send Directory request"""
-    sock.sendall(struct.pack(">B", DTRQ))
-
-
-def send_FRQ(sock, path):
-    """send Create folder request"""
-    sock.sendall(struct.pack(">BB", DRQ, len(path)) + path.encode("utf-8"))
+        log(f"[INFO]: {ip} sent an unknown.")
+        send_error(sock, ip, "unknown request.")
