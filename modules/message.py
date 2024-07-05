@@ -9,6 +9,11 @@ from socket import AF_INET, socket, SOCK_STREAM
 from modules.shared import *
 
 
+def get_err(sock):
+    err_len = struct.unpack(">B", recv_all(sock, 1))[0]
+    return recv_all(sock, err_len).decode("utf-8")
+
+
 def send_RRQ(address, file_path):
     """send Read request"""
     sock = socket(AF_INET, SOCK_STREAM)
@@ -16,10 +21,13 @@ def send_RRQ(address, file_path):
     sock.sendall(struct.pack(">BB", RRQ, len(file_path)) + file_path.encode("utf-8"))
     result_opcode = struct.unpack(">B", recv_all(sock, 1))[0]
     size = None
+    error_msg = ""
     if result_opcode:
         size = struct.unpack(">Q", recv_all(sock, 8))[0]
+    else:
+        error_msg = get_err(sock)
     sock.close()
-    return result_opcode, size
+    return error_msg, size
 
 
 def send_WRQ(address, file_path, size):
@@ -32,8 +40,11 @@ def send_WRQ(address, file_path, size):
         + struct.pack(">Q", size)
     )
     result_opcode = struct.unpack(">B", recv_all(sock, 1))[0]
+    error_msg = ""
+    if not result_opcode:
+        error_msg = get_err(sock)
     sock.close()
-    return result_opcode
+    return error_msg
 
 
 def send_DRRQ(address, file_path, offset, count):
@@ -47,10 +58,13 @@ def send_DRRQ(address, file_path, offset, count):
     )
     result_opcode = struct.unpack(">B", recv_all(sock, 1))[0]
     data = None
+    error_msg = ""
     if result_opcode:
         data = recv_all(sock, count)
+    else:
+        error_msg = get_err(sock)
     sock.close()
-    return result_opcode, data
+    return error_msg, data
 
 
 def send_DWRQ(address, file_path, offset, length, local_file_path):
@@ -65,8 +79,11 @@ def send_DWRQ(address, file_path, offset, length, local_file_path):
     with open(local_file_path, "rb") as f:
         sock.sendfile(f, offset, length)
     result_opcode = struct.unpack(">B", recv_all(sock, 1))[0]
+    error_msg = ""
+    if not result_opcode:
+        error_msg = get_err(sock)
     sock.close()
-    return result_opcode
+    return error_msg
 
 
 def send_FWRQ(address, file_path):
@@ -75,8 +92,11 @@ def send_FWRQ(address, file_path):
     sock.connect(address)
     sock.sendall(struct.pack(">BB", FWRQ, len(file_path)) + file_path.encode("utf-8"))
     result_opcode = struct.unpack(">B", recv_all(sock, 1))[0]
+    error_msg = ""
+    if not result_opcode:
+        error_msg = get_err(sock)
     sock.close()
-    return result_opcode
+    return error_msg
 
 
 def send_DRQ(address, file_path):
@@ -85,8 +105,11 @@ def send_DRQ(address, file_path):
     sock.connect(address)
     sock.sendall(struct.pack(">BB", DRQ, len(file_path)) + file_path.encode("utf-8"))
     result_opcode = struct.unpack(">B", recv_all(sock, 1))[0]
+    error_msg = ""
+    if not result_opcode:
+        error_msg = get_err(sock)
     sock.close()
-    return result_opcode
+    return error_msg
 
 
 def send_DTRQ(address):
@@ -96,11 +119,14 @@ def send_DTRQ(address):
     sock.sendall(struct.pack(">B", DTRQ))
     result_opcode = struct.unpack(">B", recv_all(sock, 1))[0]
     directory_dict = None
+    error_msg = ""
     if result_opcode:
         data_length = struct.unpack(">I", recv_all(sock, 4))[0]
         directory_dict = json.loads(recv_all(sock, data_length).decode("utf-8"))
+    else:
+        error_msg = get_err(sock)
     sock.close()
-    return result_opcode, directory_dict
+    return error_msg, directory_dict
 
 
 def send_FRQ(address, path):
@@ -109,5 +135,8 @@ def send_FRQ(address, path):
     sock.connect(address)
     sock.sendall(struct.pack(">BB", FRQ, len(path)) + path.encode("utf-8"))
     result_opcode = struct.unpack(">B", recv_all(sock, 1))[0]
+    error_msg = ""
+    if not result_opcode:
+        error_msg = get_err(sock)
     sock.close()
-    return result_opcode
+    return error_msg

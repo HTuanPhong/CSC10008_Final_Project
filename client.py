@@ -1,9 +1,10 @@
 """Client demo"""
 
+import sys
 from socket import AF_INET, socket, SOCK_STREAM  # Stream mean TCP
 import modules.message as msg
 
-HOST = "172.0.0.1"  # IP adress server
+HOST = "localhost"  # IP adress server
 PORT = 1234  # Port is used by the server
 ADDR = (HOST, PORT)
 FORMAT = "utf-8"
@@ -14,11 +15,16 @@ local_file_path = "random.txt"  # the file is in same dir as client.py
 # first is a request to upload to server
 # single thread example but the two send_DWRQ below can run on 2 thread.
 # should error check with if and redo it but i want example to be simple.
-msg.send_WRQ(ADDR, file_path, 25)  # calculate file size with os module instead.
-msg.send_DWRQ(ADDR, file_path, 12, 13, local_file_path)  # write at index 12 to end
+err = msg.send_WRQ(ADDR, file_path, 25)  # calculate file size with os module instead.
+if err:  # if the programer check before send this will never raise
+    print(err)  # usually a popup error window display these.
+    sys.exit(1)
+err = msg.send_DWRQ(
+    ADDR, file_path, 12, 13, local_file_path
+)  # write at index 12 to end
 #### you can stop here and check the server's .uploading file on hex editor to confirm.
-msg.send_DWRQ(ADDR, file_path, 0, 12, local_file_path)  # write at index 0 to 11
-msg.send_FWRQ(ADDR, file_path)  # we done.
+err = msg.send_DWRQ(ADDR, file_path, 0, 12, local_file_path)  # write at index 0 to 11
+err = msg.send_FWRQ(ADDR, file_path)  # we done.
 
 # get server's directory layout
 result, dir_dict = msg.send_DTRQ(ADDR)
