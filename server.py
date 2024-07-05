@@ -130,7 +130,7 @@ requests = {}
 root = tk.Tk()
 root.title("Server")
 root.iconbitmap("icon.ico")
-# root.minsize(width=500, height=500)
+root.minsize(width=500, height=500)
 
 style = ttk.Style(root)
 style.theme_use("clam")
