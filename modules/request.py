@@ -82,10 +82,10 @@ def send_error(sock, ip, msg):
 def process_RRQ(sock, ip):
     """process read request.
     Receive structure:
-       1 bytes      1 byte       n bytes
-     ----------------------------------------
-    |   Opcode   |   Length   |   Filepath   |
-     ----------------------------------------
+       1 byte       n bytes
+     ---------------------------
+    |   Length   |   Filepath   |
+     ---------------------------
     Success reply structure:
        1 bytes      8 bytes
      ---------------------------
@@ -109,10 +109,10 @@ def process_RRQ(sock, ip):
 def process_WRQ(sock, ip):
     """process write request.
     Receive structure:
-       1 bytes      1 byte       n bytes        8 bytes
-     ---------------------------------------------------
-    |   Opcode   |   Length   |   Filepath   |   Size   |
-     ---------------------------------------------------
+       1 byte       n bytes        8 bytes
+     --------------------------------------
+    |   Length   |   Filepath   |   Size   |
+     --------------------------------------
     Success reply structure:
        1 bytes
      ------------
@@ -145,12 +145,12 @@ def process_WRQ(sock, ip):
 def process_DRRQ(sock, ip):
     """process data read request.
     Receive structure:
-       1 bytes      1 byte       n bytes        8 bytes      8 bytes
-     -----------------------------------------------------------------
-    |   Opcode   |   Length   |   Filepath   |   Offset   |   Length   |
-     -----------------------------------------------------------------
+       1 byte       n bytes        8 bytes      8 bytes
+     ----------------------------------------------------
+    |   Length   |   Filepath   |   Offset   |   Length   |
+     ----------------------------------------------------
     Success reply structure:
-       1 bytes      end-start bytes
+       1 bytes      Length bytes
      -------------------------------
     |   Opcode   |       Data       |
      -------------------------------
@@ -180,10 +180,11 @@ def process_DRRQ(sock, ip):
 
 def process_DWRQ(sock, ip):
     """process data write request
-       1 bytes      1 byte       n bytes        8 bytes      8 bytes      n bytes
-     -----------------------------------------------------------------------------
-    |   Opcode   |   Length   |   Filepath   |   Offset   |   Length   |   Data   |
-     -----------------------------------------------------------------------------
+    Receive structure:
+       1 byte       n bytes        8 bytes      8 bytes      n bytes
+     ----------------------------------------------------------------
+    |   Length   |   Filepath   |   Offset   |   Length   |   Data   |
+     ----------------------------------------------------------------
     Success reply structure:
        1 bytes
      ------------
@@ -216,10 +217,10 @@ def process_DWRQ(sock, ip):
 def process_FWRQ(sock, ip):
     """process finish write request
     Receive structure:
-       1 bytes      1 byte       n bytes
-     ----------------------------------------
-    |   Opcode   |   Length   |   Filepath   |
-     ----------------------------------------
+       1 byte       n bytes
+     ---------------------------
+    |   Length   |   Filepath   |
+     ---------------------------
     Success reply structure:
        1 bytes
      ------------
@@ -245,10 +246,10 @@ def process_FWRQ(sock, ip):
 def process_DRQ(sock, ip):
     """process delete request
     Receive structure:
-       1 bytes      1 byte       n bytes
-     ------------------------------------
-    |   Opcode   |   Length   |   Path   |
-     ------------------------------------
+       1 byte       n bytes
+     -----------------------
+    |   Length   |   Path   |
+     -----------------------
     Success reply structure:
        1 bytes
      ------------
@@ -274,11 +275,6 @@ def process_DRQ(sock, ip):
 
 def process_DTRQ(sock, ip):
     """process directory request
-    Receive structure:
-       1 bytes
-     ------------
-    |   Opcode   |
-     ------------
     Success reply structure:
        1 bytes      4 bytes      n bytes
      -----------------------------------------
@@ -299,10 +295,10 @@ def process_DTRQ(sock, ip):
 def process_FRQ(sock, ip):
     """process folder request
     Receive structure:
-       1 bytes      1 byte       n bytes
-     ------------------------------------
-    |   Opcode   |   Length   |   Path   |
-     ------------------------------------
+       1 byte       n bytes
+     -----------------------
+    |   Length   |   Path   |
+     -----------------------
     Success reply structure:
        1 bytes
      ------------
