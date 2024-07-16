@@ -2,13 +2,15 @@
 
 file_path is file path relative to server's root not path on our machine.
 """
-#change all send method to raise exception when there is error
+
+# change all send method to raise exception when there is error
 import struct
 import json
 from socket import AF_INET, socket, SOCK_STREAM
-from shared import *
+from modules.shared import *
 
 FORMAT = DEFAULT_FORMAT
+
 
 def raise_err(sock):
     err_len = struct.unpack(">B", recv_all(sock, 1))[0]
@@ -20,6 +22,7 @@ def raise_err(sock):
     else:
         raise OSError(err_msg)
 
+
 def send_RRQ(address, file_path):
     """send Read request"""
     sock = socket(AF_INET, SOCK_STREAM)
@@ -27,7 +30,7 @@ def send_RRQ(address, file_path):
         sock.connect(address)
         sock.sendall(struct.pack(">BB", RRQ, len(file_path)) + file_path.encode(FORMAT))
         result_opcode = struct.unpack(">B", recv_all(sock, 1))[0]
-        
+
         if result_opcode == SUCCESS:
             return struct.unpack(">Q", recv_all(sock, 8))[0]
         else:
@@ -35,6 +38,7 @@ def send_RRQ(address, file_path):
     finally:
         sock.close()
     return None
+
 
 def send_WRQ(address, file_path, size):
     """send Write request"""
@@ -53,7 +57,8 @@ def send_WRQ(address, file_path, size):
     finally:
         sock.close()
 
-#file_path is from server, offset, count is byte
+
+# file_path is from server, offset, count is byte
 def send_DRRQ(address, file_path, offset, count):
     """send Data read request"""
     sock = socket(AF_INET, SOCK_STREAM)
@@ -69,7 +74,7 @@ def send_DRRQ(address, file_path, offset, count):
         if result_opcode == SUCCESS:
             return recv_all(sock, count)
         else:
-            error_msg = raise_err(sock)
+            raise_err(sock)
     finally:
         sock.close()
     return None
@@ -100,7 +105,9 @@ def send_FWRQ(address, file_path):
     sock = socket(AF_INET, SOCK_STREAM)
     try:
         sock.connect(address)
-        sock.sendall(struct.pack(">BB", FWRQ, len(file_path)) + file_path.encode(FORMAT))
+        sock.sendall(
+            struct.pack(">BB", FWRQ, len(file_path)) + file_path.encode(FORMAT)
+        )
         result_opcode = struct.unpack(">B", recv_all(sock, 1))[0]
         if result_opcode == ERROR:
             raise_err(sock)
@@ -129,7 +136,7 @@ def send_DTRQ(address):
         sock.connect(address)
         sock.sendall(struct.pack(">B", DTRQ))
         result_opcode = struct.unpack(">B", recv_all(sock, 1))[0]
-        
+
         if result_opcode:
             data_length = struct.unpack(">I", recv_all(sock, 4))[0]
             directory_dict = json.loads(recv_all(sock, data_length).decode(FORMAT))
