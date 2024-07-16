@@ -28,6 +28,8 @@
     max file path is 2^8 bytes = 255 characters.
     max file size is 2^(8*8) bytes ~ 18.3 exabytes.
 """
+#TODO: change utf-8 to some constant in shared file
+#change send error message to opcode
 
 import struct  # for packing bytes
 import os  # for directory operation
