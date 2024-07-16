@@ -15,7 +15,7 @@
     server -> client
     opcode  operation
       0     Error (ERROR)
-      1     Success (SUCC)
+      1     Success (SUCCESS)
 
     request/reply structure:
        1 byte      n bytes
@@ -28,8 +28,9 @@
     max file path is 2^8 bytes = 255 characters.
     max file size is 2^(8*8) bytes ~ 18.3 exabytes.
 """
-#TODO: change utf-8 to some constant in shared file
-#change send error message to opcode
+
+# TODO: change utf-8 to some constant in shared file
+# change send error message to opcode
 
 import struct  # for packing bytes
 import os  # for directory operation
@@ -104,7 +105,7 @@ def process_RRQ(sock, ip):
     except OSError as e:
         send_error(sock, ip, str(e))
         return
-    sock.sendall(struct.pack(">BQ", SUCC, size))
+    sock.sendall(struct.pack(">BQ", SUCCESS, size))
     log(f"[INFO]: {ip} got a success on {OP_STR[RRQ]}")
 
 
@@ -140,7 +141,7 @@ def process_WRQ(sock, ip):
     with open(file_upload_path, "wb") as f:
         f.seek(file_size - 1)
         f.write(b"\0")
-    sock.sendall(struct.pack(">B", SUCC))
+    sock.sendall(struct.pack(">B", SUCCESS))
     log(f"[INFO]: {ip} got a success on {OP_STR[WRQ]}")
 
 
@@ -175,7 +176,7 @@ def process_DRRQ(sock, ip):
         send_error(sock, ip, "out of range.")
         return
     with open(file_path, "rb") as f:
-        sock.sendall(struct.pack(">B", SUCC))
+        sock.sendall(struct.pack(">B", SUCCESS))
         sock.sendfile(f, offset, length)
     log(f"[INFO]: {ip} got a success on {OP_STR[DRRQ]}")
 
@@ -212,7 +213,7 @@ def process_DWRQ(sock, ip):
         send_error(sock, ip, "out of range.")
         return
     recv_data(sock, file_upload_path, offset, data_length)
-    sock.sendall(struct.pack(">B", SUCC))
+    sock.sendall(struct.pack(">B", SUCCESS))
     log(f"[INFO]: {ip} got a success on {OP_STR[DWRQ]}")
 
 
@@ -241,7 +242,7 @@ def process_FWRQ(sock, ip):
     except OSError as e:
         send_error(sock, ip, str(e))
         return
-    sock.sendall(struct.pack(">B", SUCC))
+    sock.sendall(struct.pack(">B", SUCCESS))
     log(f"[INFO]: {ip} got a success on {OP_STR[FWRQ]}")
 
 
@@ -271,7 +272,7 @@ def process_DRQ(sock, ip):
     except OSError as e:
         send_error(sock, ip, str(e))
         return
-    sock.sendall(struct.pack(">B", SUCC))
+    sock.sendall(struct.pack(">B", SUCCESS))
     log(f"[INFO]: {ip} got a success on {OP_STR[DRQ]}")
 
 
@@ -289,7 +290,7 @@ def process_DTRQ(sock, ip):
         relative_path = os.path.relpath(root, SERVER_DATA_PATH)
         directory_structure[relative_path] = {"dirs": dirs, "files": files}
     data = json.dumps(directory_structure).encode("utf-8")
-    sock.sendall(struct.pack(">BI", SUCC, len(data)))
+    sock.sendall(struct.pack(">BI", SUCCESS, len(data)))
     sock.sendall(data)
     log(f"[INFO]: {ip} got a success on {OP_STR[DTRQ]}")
 
@@ -317,7 +318,7 @@ def process_FRQ(sock, ip):
     except OSError as e:
         send_error(sock, ip, str(e))
         return
-    sock.sendall(struct.pack(">B", SUCC))
+    sock.sendall(struct.pack(">B", SUCCESS))
     log(f"[INFO]: {ip} got a success on {OP_STR[FRQ]}")
 
 
