@@ -5,22 +5,28 @@ from socket import (
     AF_INET,  # mean ipv4
     SOCK_STREAM,  # mean TCP
     SHUT_RDWR,  # stop read write
+    SHUT_RD,  # stop read
 )
 import datetime
+import threading
 from threading import Thread
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 import modules.request as req
 
+# settings:
+server_default_port = 8888
+client_timeout = 5
+
 
 def handle_incoming_connections():
     """Sets up handling for incoming request."""
 
-    while True:
+    while not stop_event.is_set():
         try:
             request_socket, (request_host, request_port) = server.accept()
-            request_socket.settimeout(30)
+            request_socket.settimeout(client_timeout)
             request_thread = Thread(
                 target=handle_request, args=(request_socket,), daemon=True
             )
@@ -29,11 +35,13 @@ def handle_incoming_connections():
                 "thread": request_thread,
             }
             request_thread.start()
+        except TimeoutError:
+            continue
         except OSError:
             break
 
     for request, info in requests.copy().items():
-        request.shutdown(SHUT_RDWR)
+        request.close()
         info["thread"].join()
 
 
@@ -43,15 +51,23 @@ def handle_request(sock):
     try:
         req.process_request(sock, ip)
     except OSError as e:
-        log(f"[WARN]: {ip} OSError occurred: {str(e)}")
-
+        if not stop_event.is_set():
+            log(f"[WARN]: {ip} OSError occurred: {str(e)}")
     sock.close()
     del requests[sock]
+
+
+def ping_accept():
+    sock = socket.socket(AF_INET, SOCK_STREAM)
+    sock.connect(("localhost", server_default_port))
 
 
 def stop_server():
     "Stop server properly."
     log("[INFO]: Closing server...")
+    root.update_idletasks()
+    stop_event.set()
+    # ping_accept()
     server.close()
     accept_thread.join()
     log("[INFO]: Done.")
@@ -66,11 +82,18 @@ def start_server():
     """Start the server and thread."""
     if not validate_input():
         return
+    stop_event.clear()
     global server, accept_thread
     server = socket.socket(AF_INET, SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # for POSIX systems
+    server.settimeout(5)
     req.set_log_method(log)
     req.set_server_data_path(directory_entry.get())
-    server.bind(("", int(port_entry.get())))
+    try:
+        server.bind(("", int(port_entry.get())))
+    except OSError as e:
+        log(str(e))
+        return
     server.listen()
     accept_thread = Thread(target=handle_incoming_connections, daemon=True)
     accept_thread.start()
@@ -92,7 +115,9 @@ def log_clear():
 def log(message):
     current_time = datetime.datetime.now().strftime("%Y-%m-%d|%H:%M:%S")
     log_area.config(state="normal")
-    log_area.insert(tk.END, f"[{current_time}]{message}\n")
+    log_area.insert(
+        tk.END, f"[{current_time}][Threads:{threading.active_count()}]{message}\n"
+    )
     log_area.yview(tk.END)
     log_area.config(state="disabled")
 
@@ -124,12 +149,13 @@ def validate_input():
 # global variables: (should have use class but server is a singleton anyway.)
 server = None
 accept_thread = None
+stop_event = threading.Event()
 requests = {}
 
 # Init default window:
 root = tk.Tk()
 root.title("Server")
-root.iconbitmap("icon.ico")
+# root.iconbitmap("icon.ico")
 root.minsize(width=500, height=500)
 
 style = ttk.Style(root)
@@ -143,6 +169,7 @@ browse_button = ttk.Button(input_frame, text="Browse", command=browse_directory)
 directory_entry = ttk.Entry(input_frame, width=40, state="readonly")
 port_label = ttk.Label(input_frame, text="TCP Port:")
 port_entry = ttk.Entry(input_frame, width=13, state="normal")
+port_entry.insert(tk.END, str(server_default_port))
 start_button = ttk.Button(input_frame, text="Start Server", command=start_server)
 stop_button = ttk.Button(
     input_frame, text="Stop Server", command=stop_server, state="disabled"
