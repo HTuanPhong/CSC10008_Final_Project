@@ -3,9 +3,9 @@
 import socket
 from socket import (
     AF_INET,  # mean ipv4
+    AF_INET6,  # mean ipv6
     SOCK_STREAM,  # mean TCP
     SHUT_RDWR,  # stop read write
-    SHUT_RD,  # stop read
 )
 import datetime
 import threading
@@ -13,53 +13,73 @@ from threading import Thread
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
+import struct
+import time
 import modules.request as req
+import modules.shared as shared
 
 # settings:
-server_default_port = 8888
-client_timeout = 5
+server_default_port = shared.DEFAULT_SERVER_PORT
+client_timeout = 120  # seconds
+directory_refresh_rate = 1  # seconds
 
 
 def handle_incoming_connections():
     """Sets up handling for incoming request."""
-
     while not stop_event.is_set():
         try:
             request_socket, (request_host, request_port) = server.accept()
             request_socket.settimeout(client_timeout)
             request_thread = Thread(
-                target=handle_request, args=(request_socket,), daemon=True
+                target=handle_request,
+                args=(request_socket, f"{request_host}:{str(request_port)}"),
+                daemon=True,
             )
-            requests[request_socket] = {
-                "address": (request_host, request_port),
-                "thread": request_thread,
-            }
+            requests[request_socket] = {"thread": request_thread, "type": None}
             request_thread.start()
-        except TimeoutError:
-            continue
         except OSError:
             break
 
     for request, info in requests.copy().items():
-        request.close()
+        request.shutdown(SHUT_RDWR)
         info["thread"].join()
 
 
-def handle_request(sock):
+def handle_request(sock, ip):
     """Handles a single request connection."""
-    ip = requests[sock]["address"][0]
     try:
-        req.process_request(sock, ip)
+        while not stop_event.is_set():
+            opcode = struct.unpack(">B", shared.recv_all(sock, 1))[0]
+            requests[sock]["type"] = opcode
+            match opcode:
+                case shared.RRQ:
+                    req.process_RRQ(sock, ip)
+                case shared.WRQ:
+                    req.process_WRQ(sock, ip)
+                case shared.DRRQ:
+                    req.process_DRRQ(sock, ip)
+                case shared.DWRQ:
+                    req.process_DWRQ(sock, ip)
+                case shared.FWRQ:
+                    req.process_FWRQ(sock, ip)
+                case shared.DRQ:
+                    req.process_DRQ(sock, ip)
+                case shared.DTRQ:
+                    req.process_DTRQ(sock, ip)
+                    break  # no reuse
+                case shared.FRQ:
+                    req.process_FRQ(sock, ip)
+                case _:
+                    log(f"[INFO]: {ip} sent an unknown.")
+                    req.send_error(sock, ip, "unknown request.")
+            requests[sock]["type"] = None
+    except ConnectionAbortedError:
+        log(f"[INFO]: {ip} disconnected.")
     except OSError as e:
         if not stop_event.is_set():
-            log(f"[WARN]: {ip} OSError occurred: {str(e)}")
+            log(f"[INFO]: {ip} {str(e)}")
     sock.close()
     del requests[sock]
-
-
-def ping_accept():
-    sock = socket.socket(AF_INET, SOCK_STREAM)
-    sock.connect(("localhost", server_default_port))
 
 
 def stop_server():
@@ -67,8 +87,12 @@ def stop_server():
     log("[INFO]: Closing server...")
     root.update_idletasks()
     stop_event.set()
-    # ping_accept()
+    try:
+        server.shutdown(SHUT_RDWR)
+    except OSError:
+        pass
     server.close()
+    directory_thread.join()
     accept_thread.join()
     log("[INFO]: Done.")
     start_button.config(state="normal")
@@ -83,12 +107,16 @@ def start_server():
     if not validate_input():
         return
     stop_event.clear()
-    global server, accept_thread
-    server = socket.socket(AF_INET, SOCK_STREAM)
+    global server, accept_thread, directory_thread
+    if socket.has_dualstack_ipv6():
+        server = socket.socket(AF_INET, SOCK_STREAM)
+    else:
+        server = socket.socket(AF_INET6, SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # for POSIX systems
-    server.settimeout(5)
     req.set_log_method(log)
     req.set_server_data_path(directory_entry.get())
+    req.set_directory_refresh_rate(directory_refresh_rate)
+    req.set_stop_event(stop_event)
     try:
         server.bind(("", int(port_entry.get())))
     except OSError as e:
@@ -97,6 +125,8 @@ def start_server():
     server.listen()
     accept_thread = Thread(target=handle_incoming_connections, daemon=True)
     accept_thread.start()
+    directory_thread = Thread(target=req.monitor_directory, daemon=True)
+    directory_thread.start()
     log_clear()
     log(f"[INFO]: Listening on port {port_entry.get()}")
     start_button.config(state="disabled")
@@ -149,14 +179,14 @@ def validate_input():
 # global variables: (should have use class but server is a singleton anyway.)
 server = None
 accept_thread = None
+directory_thread = None
 stop_event = threading.Event()
 requests = {}
 
 # Init default window:
 root = tk.Tk()
 root.title("Server")
-# root.iconbitmap("icon.ico")
-root.minsize(width=500, height=500)
+root.minsize(width=600, height=600)
 
 style = ttk.Style(root)
 style.theme_use("clam")
