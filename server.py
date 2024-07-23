@@ -3,7 +3,6 @@
 import socket
 from socket import (
     AF_INET,  # mean ipv4
-    AF_INET6,  # mean ipv6
     SOCK_STREAM,  # mean TCP
     SHUT_RDWR,  # stop read write
 )
@@ -42,6 +41,7 @@ def handle_incoming_connections():
 
     for request, info in requests.copy().items():
         request.shutdown(SHUT_RDWR)
+        request.close()
         info["thread"].join()
 
 
@@ -108,10 +108,7 @@ def start_server():
         return
     stop_event.clear()
     global server, accept_thread, directory_thread
-    if socket.has_dualstack_ipv6():
-        server = socket.socket(AF_INET, SOCK_STREAM)
-    else:
-        server = socket.socket(AF_INET6, SOCK_STREAM)
+    server = socket.socket(AF_INET, SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # for POSIX systems
     req.set_log_method(log)
     req.set_server_data_path(directory_entry.get())

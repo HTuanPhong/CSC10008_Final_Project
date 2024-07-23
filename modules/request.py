@@ -276,33 +276,32 @@ def process_DRQ(sock, ip):
 
 
 def get_directory():
-    directory_structure = {}
+    directory = {"type": "folder", "name": "root", "path": "."}
 
-    def scan_directory(path, relative_path=""):
-        dirs = []
-        files = []
-        sizes = []
+    def build_json_structure(root_dir, current_path=""):
+        structure = []
 
-        with os.scandir(path) as it:
+        with os.scandir(root_dir) as it:
             for entry in it:
+                entry_path = os.path.join(current_path, entry.name)
+                entry_info = {
+                    "type": "folder" if entry.is_dir(follow_symlinks=False) else "file",
+                    "name": entry.name,
+                    "path": entry_path,
+                }
                 if entry.is_dir(follow_symlinks=False):
-                    dirs.append(entry.name)
-                    scan_directory(
-                        os.path.join(path, entry.name),
-                        os.path.join(relative_path, entry.name),
+                    entry_info["children"] = build_json_structure(
+                        os.path.join(root_dir, entry.name), entry_path
                     )
-                elif entry.is_file(follow_symlinks=False):
-                    files.append(entry.name)
-                    sizes.append(entry.stat().st_size)
+                else:
+                    entry_info["size"] = entry.stat().st_size  # Add file size
 
-        directory_structure[relative_path] = {
-            "dirs": dirs,
-            "files": files,
-            "sizes": sizes,
-        }
+                structure.append(entry_info)
 
-    scan_directory(SERVER_DATA_PATH)
-    return directory_structure
+        return structure
+
+    directory["children"] = build_json_structure(SERVER_DATA_PATH)
+    return directory
 
 
 def send_directory(sock, directory):
