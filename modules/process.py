@@ -98,7 +98,7 @@ def downloadFile(server_address, server_path, client_path):
 
     file_size = send_RRQ(server_address, server_path)   #might raise file not exist
     if shutil.disk_usage(client_path)[2] < file_size:
-        raise OSError('server diskspace full')
+        raise OSError('client diskspace full')
 
     with open(file_path, "wb") as f:
         f.seek(file_size - 1)
