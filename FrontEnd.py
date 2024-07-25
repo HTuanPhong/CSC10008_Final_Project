@@ -245,6 +245,21 @@ setting_frame.place(relwidth=1.0, relheight=1.0)
 
 raise_frame(download_frame)
 
+# Download
+logo_pdfFile = customtkinter.CTkImage(
+     dark_image=Image.open("Image/pdfFile.png"),
+     light_image=Image.open("Image/pdfFile.png"),
+)
+
+image = customtkinter.CTkLabel(
+     download_frame,
+     image=logo_pdfFile,
+     text="",
+     
+)
+image.place(x=10, y=10)
+
+
 
 # Setting
 def change_port_sever(chosent):
