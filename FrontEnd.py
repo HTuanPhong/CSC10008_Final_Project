@@ -329,7 +329,7 @@ client_icon = customtkinter.CTkImage(
      light_image=Image.open("Image/computer.png"),
      size=(125, 125)
 )
-
+"fuck u"
 client_icon_label = customtkinter.CTkLabel(client_information_frame, image=client_icon, text="")
 client_icon_label.place(x=0, y=30)
 
