@@ -1,5 +1,6 @@
 """shared constant and function for server and client"""
-#add some constant to use, like default format
+
+# request types:
 RRQ, WRQ, DRRQ, DWRQ, FWRQ, DRQ, DTRQ, FRQ = range(8)
 OP_STR = [
     "Read request",
@@ -12,32 +13,32 @@ OP_STR = [
     "Create folder request",
 ]
 ERROR, SUCCESS = range(2)
-#appearantly, file not exist is treat as invalid file path
-ERR_STR = [
-    "invalid file path.",        #don't have an exception, raise OSError
-    "file already exist.",       #FileExistsError
-    "server diskspace full.",    #OSError
-    "file already uploading.",   #similar to file already exist, but for .uploading file
-    "offset too large.",
-    "out of range.", #IndexError exception
-]
-class FileTransferError(Exception):
-    pass
+# error types:
+(
+    PATH_ERR,
+    FILE_UPLOADING_ERR,
+    DISKSPACE_ERR,
+    OFFSET_ERR,
+    RANGE_ERR,
+    DELETE_ERR,
+    FOLDER_ERR,
+) = range(7)
 
-class FileUploadingError(FileTransferError):
-    pass  # Specific error for "file already uploading"
-ERROR_CODES = {
-    "invalid file path.": OSError('file already delete'),
-    "file already exist.": FileExistsError,
-    "server diskspace full.": OSError('server out of storage'),
-    "file already uploading.": FileUploadingError,
-    "offset too large.": IndexError('too large offset'),
-    "out of range.": IndexError('out of range')
-}
+ERR_STR = [
+    "path dont exist.",  # dev fault
+    "file already uploading.",  # dev fault
+    "server diskspace full.",  # user decide
+    "offset too large.",  # dev fault
+    "out of range.",  # dev fault
+    "unable to delete.",  # user decide
+    "unable to make folder.",  # user decide
+]
+
 
 MAX_BUF = 65536
 DEFAULT_SERVER_PORT = 8888
-DEFAULT_FORMAT = 'utf-8'
+DEFAULT_FORMAT = "utf-8"
+
 
 def recv_data(sock, file_path, offset, count):
     """receive data and write to file"""
@@ -50,7 +51,7 @@ def recv_data(sock, file_path, offset, count):
             read_size = min(count - total_written, MAX_BUF)
             received = sock.recv_into(view[:read_size])
             if not received:
-                raise OSError("Other side abruptly disconnected.")
+                raise OSError("closed connection.")
             total_written += received
             f.write(view[:received])
 
@@ -63,6 +64,6 @@ def recv_all(sock, n):
     while total_received < n:
         received = sock.recv_into(view[total_received:], n - total_received)
         if not received:
-            raise OSError("Other side abruptly disconnected.")
+            raise OSError("closed connection.")
         total_received += received
     return data
