@@ -8,7 +8,6 @@ import json
 import threading
 from socket import AF_INET, socket, SOCK_STREAM, SHUT_RDWR
 from modules.shared import *
-from queue import Queue
 
 FORMAT = DEFAULT_FORMAT
 

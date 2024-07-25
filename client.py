@@ -1,49 +1,270 @@
 """Client demo"""
 
-import sys
-from socket import AF_INET, socket, SOCK_STREAM  # Stream mean TCP
+import time
+import os
+import threading
+from threading import Thread
+import tkinter as tk
+from tkinter import ttk
+from tkinter import filedialog
+from queue import Queue
+from modules.shared import *
+from modules.message import messenger, messengerError
 import modules.message as msg
 
-HOST = "localhost"  # IP adress server
-PORT = 1234  # Port is used by the server
-ADDR = (HOST, PORT)
-FORMAT = "utf-8"
-
-file_path = "random_server.txt"  # the file is in same dir as server chosen root
-local_file_path = "random.txt"  # the file is in same dir as client.py
-# remember these path are not the same
-# first is a request to upload to server
-# single thread example but the two send_DWRQ below can run on 2 thread.
-# should error check with if and redo it but i want example to be simple.
-err = msg.send_WRQ(ADDR, file_path, 25)  # calculate file size with os module instead.
-if err:  # if the programer check before send this will never raise
-    print(err)  # usually a popup error window display these.
-    sys.exit(1)
-err = msg.send_DWRQ(
-    ADDR, file_path, 12, 13, local_file_path
-)  # write at index 12 to end
-#### you can stop here and check the server's .uploading file on hex editor to confirm.
-err = msg.send_DWRQ(ADDR, file_path, 0, 12, local_file_path)  # write at index 0 to 11
-err = msg.send_FWRQ(ADDR, file_path)  # we done.
-
-# get server's directory layout
-result, dir_dict = msg.send_DTRQ(ADDR)
-print(dir_dict)
-
-# now we download a file
-file_path = dir_dict["."]["files"][0]
-# get first file in directory (should be random.txt if the dir is empty before this script run.)
-res, size = msg.send_RRQ(ADDR, file_path)  # remember to handle the result.
-res, data = msg.send_DRRQ(ADDR, file_path, 0, size)
-# we just order entire file data here but you can order in chunks and multi thread this.
-with open("random_from_server.txt", "wb") as f:
-    f.write(data)
+HOST = None
+PORT = None
+disconnect_event = threading.Event()
+server_directory = {}
+flatten_server_directory = {}
 
 
-"""
-at the end of this run you should see a random_server.txt in server directory.
-assuming the server dir is empty before we run this code:
-a random_from_server.txt in same directory as client.py 
-with same data as random.txt
-The second time you run this send_WRQ will error because file already exist on server.
-"""
+def download():
+    if not treeview.selection():
+        return
+    download_dir = tk.filedialog.askdirectory()
+    if not download_dir:
+        return
+    for path in treeview.selection():
+        print(path)
+
+
+def upload():
+    if not treeview.selection():
+        return
+    file_list = tk.filedialog.askopenfilenames()
+    if not file_list:
+        return
+    for path in file_list:
+        print(path)
+
+
+def flatten_directory():
+    flat_dict = {}
+
+    def _flatten(item):
+        flat_dict[item["path"]] = item
+        if item["type"] == "folder":
+            for child in item.get("children", []):
+                _flatten(child)
+
+    _flatten(server_directory)
+    return flat_dict
+
+
+def monitor_directory(msgr):
+    try:
+        msgr.sub_DTRQ()
+        global server_directory, flatten_server_directory
+        while not disconnect_event.is_set():
+            server_directory = msgr.recv_DTRQ()
+            flatten_server_directory = flatten_directory()
+            process_directory(server_directory)
+    except (OSError, msg.messengerError) as e:
+        if not disconnect_event.is_set():
+            tk.messagebox.showerror("Error", str(e))
+        disconnect()
+
+
+def format_bytes(size):
+    # 2**10 = 1024
+    power = 2**10
+    n = 0
+    units = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]
+    while size >= power and n < len(units) - 1:
+        size /= power
+        n += 1
+    return f"{size:.2f} {units[n]}"
+
+
+def process_directory(item, parent=""):
+    if item["type"] == "folder":
+        if not treeview.exists(item["path"]):
+            treeview.insert(
+                parent,
+                0,
+                item["path"],
+                text=item["name"],
+                image=folder_image,
+            )
+        else:
+            children = treeview.get_children(item["path"])
+            for child in children:
+                if child not in flatten_server_directory:
+                    treeview.delete(child)
+        for child in item.get("children", []):
+            process_directory(child, item["path"])
+    elif item["type"] == "file":
+        if not treeview.exists(item["path"]):
+            treeview.insert(
+                parent,
+                0,
+                item["path"],
+                text=item["name"],
+                image=file_image,
+                values=(
+                    time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(item["mtime"])),
+                    format_bytes(item["size"]),
+                ),
+            )
+
+
+def validate_input():
+    try:
+        port = int(port_entry.get())
+    except ValueError:
+        tk.messagebox.showerror("Error", "Please enter port number")
+        return False
+    if port < 0 or port > 65535:
+        tk.messagebox.showerror("Error", "Port must be between 0 and 65535")
+        return False
+    return True
+
+
+def connect():
+    if not validate_input():
+        return
+    global HOST, PORT
+    HOST = host_entry.get()
+    PORT = int(port_entry.get())
+    try:
+        dir_msg = messenger(HOST, PORT)
+    except (OSError, msg.messengerError) as e:
+        tk.messagebox.showerror("Error", str(e))
+        return
+    disconnect_event.clear()
+    directory_thread = Thread(target=monitor_directory, args=(dir_msg,), daemon=True)
+    directory_thread.start()
+    connect_button.config(state="disabled")
+    upload_button.config(state="normal")
+    download_button.config(state="normal")
+    folder_button.config(state="normal")
+    delete_button.config(state="normal")
+    disconnect_button.config(state="normal")
+    host_entry.config(state="disabled")
+    port_entry.config(state="disabled")
+
+
+def disconnect():
+    disconnect_event.set()
+    msg.disconnect_all()
+    treeview.delete(*treeview.get_children())
+    connect_button.config(state="normal")
+    upload_button.config(state="disabled")
+    download_button.config(state="disabled")
+    folder_button.config(state="disabled")
+    delete_button.config(state="disabled")
+    disconnect_button.config(state="disabled")
+    host_entry.config(state="normal")
+    port_entry.config(state="normal")
+
+
+def delete():
+    if not treeview.selection():
+        return
+    try:
+        mes = messenger(HOST, PORT)
+        for path in treeview.selection():
+            mes.send_DRQ(path)
+    except (OSError, msg.messengerError) as e:
+        tk.messagebox.showerror("Error", str(e))
+    finally:
+        mes.close()
+
+
+def folder():
+    if not treeview.selection():
+        return
+    try:
+        mes = messenger(HOST, PORT)
+        last_path = treeview.selection()[-1]
+        name = tk.simpledialog.askstring("Input", "Please enter folder name:")
+        if not name:
+            return
+        if flatten_server_directory[last_path]["type"] == "folder":
+            mes.send_FRQ(os.path.join(last_path, name))
+        else:
+            mes.send_FRQ(os.path.join(os.path.dirname(last_path), name))
+    except (OSError, msg.messengerError) as e:
+        tk.messagebox.showerror("Error", str(e))
+    finally:
+        mes.close()
+
+
+explorer_objects = {}
+
+root = tk.Tk()
+root.title("Client")
+root.minsize(width=600, height=600)
+
+style = ttk.Style(root)
+style.theme_use("clam")
+
+main_frame = ttk.Frame(root, padding=(10, 10, 10, 10))
+
+input_frame = ttk.Frame(main_frame)
+connection_frame = ttk.Frame(input_frame)
+host_label = ttk.Label(connection_frame, text="IPv4 host:")
+host_entry = ttk.Entry(connection_frame, width=26, state="normal")
+host_entry.insert(tk.END, "127.0.0.1")
+port_label = ttk.Label(connection_frame, text="TCP port:")
+port_entry = ttk.Entry(connection_frame, width=13, state="normal")
+port_entry.insert(tk.END, str(DEFAULT_SERVER_PORT))
+connect_button = ttk.Button(connection_frame, text="Connect", command=connect)
+disconnect_button = ttk.Button(
+    connection_frame, text="Disconnect", state="disabled", command=disconnect
+)
+operation_frame = ttk.Frame(input_frame)
+delete_button = ttk.Button(
+    operation_frame, text="Delete", state="disabled", command=delete
+)
+folder_button = ttk.Button(
+    operation_frame, text="Make folder", state="disabled", command=folder
+)
+download_button = ttk.Button(
+    operation_frame, text="Download", state="disabled", command=download
+)
+upload_button = ttk.Button(
+    operation_frame, text="Upload", state="disabled", command=upload
+)
+dir_frame = ttk.Frame(main_frame)
+treeview = ttk.Treeview(dir_frame)
+treeview["columns"] = ("mtime", "size")
+treeview.heading("#0", text="Server's directory", anchor="w")
+treeview.heading("mtime", text="Data modified", anchor="w")
+treeview.heading("size", text="Size", anchor="w")
+vsb = ttk.Scrollbar(dir_frame, orient="vertical", command=treeview.yview)
+hsb = ttk.Scrollbar(dir_frame, orient="horizontal", command=treeview.xview)
+treeview.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+
+main_frame.grid(row=0, column=0, sticky="nwes")
+input_frame.grid(row=0, column=0, stick="nwes")
+connection_frame.grid(row=0, column=0, sticky="w")
+host_label.grid(row=0, column=0, padx=4, pady=4, sticky="w")
+host_entry.grid(row=0, column=1, padx=4, pady=4, sticky="w")
+port_label.grid(row=0, column=2, padx=4, pady=4, sticky="w")
+port_entry.grid(row=0, column=3, padx=4, pady=4, sticky="w")
+connect_button.grid(row=0, column=4, padx=4, pady=4, sticky="w")
+disconnect_button.grid(row=0, column=5, padx=4, pady=4, sticky="w")
+operation_frame.grid(row=1, column=0, sticky="w")
+delete_button.grid(row=0, column=0, padx=4, pady=4, sticky="w")
+folder_button.grid(row=0, column=1, padx=4, pady=4, sticky="w")
+download_button.grid(row=0, column=2, padx=4, pady=4, sticky="w")
+upload_button.grid(row=0, column=3, padx=4, pady=4, sticky="w")
+dir_frame.grid(row=1, column=0, sticky="nsew")
+treeview.grid(row=0, column=0, sticky="nsew")
+vsb.grid(row=0, column=1, sticky="ns")
+hsb.grid(row=1, column=0, sticky="ew")
+
+root.grid_columnconfigure(0, weight=1)
+root.grid_rowconfigure(0, weight=1)
+main_frame.grid_columnconfigure(0, weight=1)
+main_frame.grid_rowconfigure(1, weight=1)
+# input_frame.grid_columnconfigure(1, weight=1)
+dir_frame.grid_rowconfigure(0, weight=1)
+dir_frame.grid_columnconfigure(0, weight=1)
+
+file_image = tk.PhotoImage(file="file.png")
+folder_image = tk.PhotoImage(file="folder.png")
+
+root.mainloop()

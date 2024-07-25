@@ -40,15 +40,15 @@ DEFAULT_SERVER_PORT = 8888
 DEFAULT_FORMAT = "utf-8"
 
 
-def recv_data(sock, file_path, offset, count):
+def recv_data(sock, file_path, offset, length):
     """receive data and write to file"""
     total_written = 0
     buffer = bytearray(MAX_BUF)
     view = memoryview(buffer)
     with open(file_path, "r+b") as f:
         f.seek(offset)
-        while total_written < count:
-            read_size = min(count - total_written, MAX_BUF)
+        while total_written < length:
+            read_size = min(length - total_written, MAX_BUF)
             received = sock.recv_into(view[:read_size])
             if not received:
                 raise OSError("closed connection.")

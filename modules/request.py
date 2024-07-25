@@ -266,9 +266,9 @@ def process_DRQ(sock, ip):
         if os.path.isfile(path):
             os.remove(path)
         elif os.path.isdir(path):
-            os.rmdir(path)
-    except OSError:
-        send_error(sock, ip, ERR_STR[DELETE_ERR])
+            shutil.rmtree(path)
+    except OSError as e:
+        send_error(sock, ip, ERR_STR[PATH_ERR])
         return False
     sock.sendall(struct.pack(">B", SUCCESS))
     log(f"[INFO]: {ip} got a success on {OP_STR[DRQ]}")
@@ -294,7 +294,9 @@ def get_directory():
                         os.path.join(root_dir, entry.name), entry_path
                     )
                 else:
-                    entry_info["size"] = entry.stat().st_size  # Add file size
+                    stat = entry.stat()
+                    entry_info["size"] = stat.st_size
+                    entry_info["mtime"] = stat.st_mtime
 
                 structure.append(entry_info)
 
