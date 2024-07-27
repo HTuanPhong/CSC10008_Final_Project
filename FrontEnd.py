@@ -1,6 +1,5 @@
 import customtkinter
 import socket
-import ipaddress
 from PIL import Image
 
 customtkinter.set_appearance_mode("System")
@@ -10,6 +9,10 @@ WINDOW_WIDTH = 1000
 MENU_COLLAPSED_WIDTH = 45
 MENU_EXPANDED_WIDTH = 167
 DELTA_WIDTH = 10
+FILE_ITEM_WIDTH = 75
+FILE_ITEM_HEIGHT = 100
+SPACE_X = 20
+SPACE_Y = 20
 
 
 window = customtkinter.CTk()
@@ -246,18 +249,183 @@ setting_frame.place(relwidth=1.0, relheight=1.0)
 raise_frame(download_frame)
 
 # Download
+all_data = ["file1.txt", "file2.pdf", "file3.jpg", "file4.txt", "file5.txt", "file6.pdf", "file7.jpg", "file8.txt", 
+            "file9.txt", "file10.pdf", "file13.jpg", "file14.txt", "file15.txt", "file16.pdf", "file17.jpg", "file18.txt"]
+
+tool_frame = customtkinter.CTkFrame(download_frame, fg_color="white", height=60)
+tool_frame.place(relwidth=1.0, x=0, y=0)
+
+def create_file_item(filename, logofile, page_frame):
+     file_button = customtkinter.CTkButton(
+          page_frame, 
+          height=FILE_ITEM_HEIGHT, 
+          width=FILE_ITEM_WIDTH, 
+          image=logofile,
+          text=filename,
+          compound="top",
+          fg_color="white",
+          text_color="black",
+          hover_color="silver"
+     )
+     return file_button
+
+def filter_extension(extension, data):
+     if extension == "all":
+          return data
+     res_fillter = []
+     for item in data:
+          if item.endswith(f".{extension}"):
+               res_fillter.append(item)
+     return res_fillter
+
+def deactivate_extension():
+     all_extension.configure(fg_color="lightblue")
+     pdf_extension.configure(fg_color="lightblue")
+     text_extension.configure(fg_color="lightblue")
+     picture_extension.configure(fg_color="lightblue")
+
+def indicate_page_extension(but, page_frame, extension):
+     deactivate_extension()
+     but.configure(fg_color="#6699FF", text_color="black")
+     data = filter_extension(extension, all_data)
+
+     displayFile(page_frame, data)
+     raise_frame(page_frame)
+  
+
+def displayFile(page_frame, data):
+     x_coordinate = 20
+     y_coordinate = 20
+     for item in data:
+          file_ext = item[-3:] 
+          if file_ext == 'txt':
+               logofile = logo_textFile
+          elif file_ext == 'pdf':
+               logofile = logo_pdfFile
+          elif file_ext == 'jpg':
+               logofile = logo_imageFile
+          else:
+               continue  
+        
+          newItem = create_file_item(item, logofile, page_frame)
+          newItem.place(x=x_coordinate, y=y_coordinate)
+        
+          x_coordinate += (FILE_ITEM_WIDTH + SPACE_X)
+          if x_coordinate + FILE_ITEM_WIDTH > 700:
+               x_coordinate = 20
+               y_coordinate += (FILE_ITEM_HEIGHT + SPACE_Y)
+     
+all_extension = customtkinter.CTkButton(
+     tool_frame,
+     text="All File",
+     font=("Helvetica", 14),
+     width=65,
+     height=17,
+     fg_color="#6699FF",
+     text_color="black",
+     hover_color="#6699FF",
+     command=lambda: indicate_page_extension(all_extension, all_extension_frame, "all")
+)
+all_extension.place(x=50, y=30)
+
+
+
+pdf_extension = customtkinter.CTkButton(
+     tool_frame,
+     text="PDF File",
+     font=("Helvetica", 14),
+     width=65,
+     height=17,
+     fg_color="lightblue",
+     text_color="black",
+     hover_color="#6699FF",
+     command=lambda: indicate_page_extension(pdf_extension, pdf_extension_frame, "pdf")
+)
+pdf_extension.place(x=150, y=30)
+
+text_extension = customtkinter.CTkButton(
+     tool_frame,
+     text="Text File",
+     font=("Helvetica", 14),
+     width=65,
+     height=17,
+     fg_color="lightblue",
+     text_color="black",
+     hover_color="#6699FF",
+     command=lambda: indicate_page_extension(text_extension, text_extension_frame, "txt")
+)
+text_extension.place(x=250, y=30)
+
+
+picture_extension = customtkinter.CTkButton(
+     tool_frame,
+     text="Picture",
+     font=("Helvetica", 14),
+     width=65,
+     height=17,
+     fg_color="lightblue",
+     text_color="black",
+     hover_color="#6699FF",
+     command=lambda: indicate_page_extension(picture_extension, picture_extension_frame, "jpg")
+)
+picture_extension.place(x=350, y=30)
+
+
+search_box = customtkinter.CTkEntry(
+     tool_frame,
+     width=300,
+     height=28,
+     placeholder_text="Search file",
+     font=("", 17)
+
+)
+search_box.place(x=450, y=30)
+
+
+
+
+
+
+
+list_file_frame = customtkinter.CTkFrame(download_frame, fg_color="white")
+list_file_frame.place(relwidth=1.0, relheight=1.0, x=0, y=60)
+
+all_extension_frame = customtkinter.CTkFrame(list_file_frame, fg_color="white")
+all_extension_frame.place(relwidth=1.0, relheight=1.0)
+
+pdf_extension_frame = customtkinter.CTkFrame(list_file_frame, fg_color="white")
+pdf_extension_frame.place(relwidth=1.0, relheight=1.0)
+
+text_extension_frame = customtkinter.CTkFrame(list_file_frame, fg_color="white")
+text_extension_frame.place(relwidth=1.0, relheight=1.0)
+
+picture_extension_frame = customtkinter.CTkFrame(list_file_frame, fg_color="white")
+picture_extension_frame.place(relwidth=1.0, relheight=1.0)
+
+
+
+
 logo_pdfFile = customtkinter.CTkImage(
      dark_image=Image.open("Image/pdfFile.png"),
      light_image=Image.open("Image/pdfFile.png"),
+     size=(60, 60)
 )
 
-image = customtkinter.CTkLabel(
-     download_frame,
-     image=logo_pdfFile,
-     text="aaaaaaaa",
-     
+
+
+logo_textFile = customtkinter.CTkImage(
+     dark_image=Image.open("Image/txtFile.png"),
+     light_image=Image.open("Image/txtFile.png"),
+     size=(60, 60)
 )
-image.place(x=10, y=10)
+
+logo_imageFile = customtkinter.CTkImage(
+     dark_image=Image.open("Image/image.png"),
+     light_image=Image.open("Image/image.png"),
+     size=(60, 60)
+)
+
+indicate_page_extension(all_extension, all_extension_frame, "all")
 
 
 
@@ -329,7 +497,7 @@ client_icon = customtkinter.CTkImage(
      light_image=Image.open("Image/computer.png"),
      size=(125, 125)
 )
-"fuck u"
+
 client_icon_label = customtkinter.CTkLabel(client_information_frame, image=client_icon, text="")
 client_icon_label.place(x=0, y=30)
 
