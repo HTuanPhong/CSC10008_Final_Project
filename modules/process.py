@@ -1,8 +1,6 @@
 import os
 from modules.shared import *
 from modules.message import *
-# from shared import *
-# from message import *
 import shutil
 from math import ceil
 import threading
@@ -12,8 +10,9 @@ simpleThreadNumber = 8
 
 
 #region Manager
-#connections manager and process manager, properly need a thread to handle process
+#connections manager and process manager
 #use static amount of connections for now
+#haven't test yet, also
 class UploadQueue():
     "Class to manage the hold upload process, also handle connection"
     def __init__(self, host, port):
@@ -27,24 +26,30 @@ class UploadQueue():
         self.manager = threading.Thread(target=self.manager())
 
     
-    def processUpload(self, client_path, server_path):
-        self.queue.put(UploadProcess(client_path, server_path))
+    def processUpload(self, client_path, server_folder):
+        self.queue.put(UploadProcess(client_path, server_folder))
 
-    #for now, only support upload 1 file at a time,
+    def processDownload(self, server_path, client_folder):
+        self.queue.put(DownloadProcess(server_path, client_folder))
+
+    #for now, only support upload 1 file at a time
+    #you can call process multiple time though :v
     def manager(self):
         while(self.status != 'stop'):
             if(self.queue.not_empty):
-                self.startUpload()
+                self.startProcess()
         
-    def startUpload(self):
-        process = self.queue.get()
+    def startProcess(self):
         try:
-            process.start(self.connections)
+            process[0].start(self.connections)
         except:
-            self.errorQueue.put(process)
+            self.errorQueue.put(self.queue.get())
 
     def stop(self):
         self.status = 'stop'
+
+    def pause(self):
+        self.queue[0].pauseProcess()
 #endregion
 
 
@@ -53,13 +58,12 @@ class UploadQueue():
 class UploadProcess():
     """Class to handle download of a single file
     """
-    def __init__(self, client_path, server_path):
+    def __init__(self, client_path, server_folder):
         self.source_path = client_path
-        self.destinate_path = server_path
+        self.destinate_path = server_folder
         self.file_size = os.stat(client_path).st_size
-        self.segments = []      #use to expose data segment that haven't upload
+        self.segments = []
         self.connections = []
-        self.progress = 0       #expose progress
         self.status = 'wait'
         self.error = 'null'
 
@@ -173,22 +177,32 @@ class UploadProcess():
         except Exception as error:
             print('Process error:', error)
 
+    def getProgress(self):
+        processed_byte = self.file_size
+        for segment in self.segments:
+            processed_byte -= segment.length
 
+        return processed_byte / self.file_size
 
+    def getSegmentProgress(self):
+        segmentsProgress = []
+        for segment in self.segments:
+            segmentsProgress.append(segment)
+
+        return segmentsProgress
 
 #region download
 class DownloadProcess():
 #copy straight from upload, yet to be fix
     """Class to handle download of a single file
     """
-    def __init__(self, server_path, client_path):
+    def __init__(self, server_path, client_folder):
         self.source_path = server_path
-        self.folder_path = client_path
+        self.folder_path = client_folder
         self.destinate_path = None
         self.file_size = None
-        self.segments = []      #use to expose data segment that haven't upload
+        self.segments = [] 
         self.connections = []
-        self.progress = 0       #expose progress
         self.status = 'wait'
         self.error = 'null'
 
@@ -315,62 +329,18 @@ class DownloadProcess():
                 #for handling with client pressing button multiple time
         except Exception as error:
             print('Process error:', error)
+
+    def getProgress(self):
+        processed_byte = self.file_size
+        for segment in self.segments:
+            processed_byte -= segment.length
+
+        return processed_byte / self.file_size
+
+    def getSegmentProgress(self):
+        segmentsProgress = []
+        for segment in self.segments:
+            segmentsProgress.append(segment)
+
+        return segmentsProgress
 #endregion download
-
-#region old code
-# controller = None
-# def connect(host, port, threadNum: int):
-#     for i in range(threadNum + 1):
-#         messenger(host, port)
-#     global controller
-#     controller = messenger(host, port)
-
-# def downloadFile(server_path, client_path):
-#     """download file from server
-#     server path should be a file (can't download folder for now...)
-#     client path should be a folder
-#     """
-#     if(not os.path.exists(client_path)):    #path not found, dev error
-#         raise FileNotFoundError('path not found')
-#     if not os.path.isdir(client_path):
-#         raise OSError('not folder path')
-    
-#     #this might not work on Linux
-#     file_name = os.path.basename(os.path.normpath(server_path))
-#     file_path = os.path.join(client_path, file_name)
-#     if os.path.exists(file_path):   #file already exist on client, user decide
-#         raise FileExistsError('file already exist')
-
-#     file_size = controller.send_RRQ(server_path)   #might raise file not exist
-#     if shutil.disk_usage(client_path)[2] < file_size:
-#         raise OSError('client diskspace full')
-
-#     with open(file_path, "wb") as f:
-#         f.seek(file_size - 1)
-#         f.write(b"\0")
-#     segment_length = file_size // simpleThreadNumber
-#     threadWait = []
-#     for i in range(simpleThreadNumber):
-#         download = threading.Thread(target = messengers[i].send_DRRQ, args = (
-#             server_path,
-#             i * segment_length, 
-#             segment_length,
-#             file_path
-#         ))
-#         threadWait.append(download)
-#         download.start()
-#     if simpleThreadNumber * segment_length < file_size:
-#         download = threading.Thread(target = messengers[simpleThreadNumber].send_DRRQ, args = (
-#             server_path, 
-#             simpleThreadNumber * segment_length, 
-#             file_size - simpleThreadNumber * segment_length,
-#             file_path
-#         ))
-#         threadWait.append(download)
-#         download.start()
-
-#     for thread in threadWait:
-#         thread.join()
-    
-#     controller.send_FWRQ(server_path)
-#endregion old code
