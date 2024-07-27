@@ -67,3 +67,19 @@ def recv_all(sock, n):
             raise OSError("closed connection.")
         total_received += received
     return data
+
+
+import os
+def get_unique_filename(filename):
+    """
+    Generate a unique filename by appending a number if needed.
+    """
+    base, extension = os.path.splitext(filename)
+    new_filename = filename
+    counter = 1
+
+    while os.path.exists(os.path.join(SERVER_DATA_PATH, new_filename)):
+        new_filename = f"{base}({counter}){extension}"
+        counter += 1
+
+    return new_filename
