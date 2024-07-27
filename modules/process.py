@@ -10,6 +10,7 @@ import queue
 
 simpleThreadNumber = 8
 
+
 #region Manager
 #connections manager and process manager, properly need a thread to handle process
 #use static amount of connections for now
@@ -45,6 +46,7 @@ class UploadQueue():
     def stop(self):
         self.status = 'stop'
 #endregion
+
 
 #yet to be done class
 #region upload
@@ -118,7 +120,6 @@ class UploadProcess():
             if os.path.isdir(self.source_path):
                 raise NotImplementedError('chua cai :v')
             
-            file_size = os.stat(self.source_path).st_size
             file_name = os.path.basename(os.path.normpath(self.source_path))
             self.destinate_path = os.path.join(self.destinate_path, file_name)
             print('client path:', self.source_path)
@@ -128,18 +129,18 @@ class UploadProcess():
             self.status = 'start'
             self.connections = connections
 
-            connections[0].send_WRQ(self.destinate_path, file_size)    #might raise file already exist or out of disk
+            connections[0].send_WRQ(self.destinate_path, self.file_size)    #might raise file already exist or out of disk
             connection_ = len(connections)
-            segment_length = file_size // connection_
+            segment_length = self.file_size // connection_
 
             for i in range(connection_):
                 offset = i * segment_length
-                length = min(segment_length, file_size - offset)
+                length = min(segment_length, self.file_size - offset)
                 self.segments.append(UploadProcess.Segment(offset, length, self))
     
             # If the last segment is smaller than segment_length
             if self.segments:
-                self.segments[-1].length = self.file_size - self.segments[-1].offset
+                self.segments[-1].length = self.self.file_size - self.segments[-1].offset
 
 #region start process
             self.startProcess()
@@ -176,14 +177,15 @@ class UploadProcess():
 
 
 #region download
-class downloadProcess():
+class DownloadProcess():
 #copy straight from upload, yet to be fix
     """Class to handle download of a single file
     """
-    def __init__(self, client_path, server_path):
-        self.source_path = client_path
-        self.destinate_path = server_path
-        self.file_size = os.stat(client_path).st_size
+    def __init__(self, server_path, client_path):
+        self.source_path = server_path
+        self.folder_path = client_path
+        self.destinate_path = None
+        self.file_size = None
         self.segments = []      #use to expose data segment that haven't upload
         self.connections = []
         self.progress = 0       #expose progress
@@ -212,11 +214,11 @@ class downloadProcess():
             try:
                 while(self.mark_byte < self.length and self.process.status != 'pause'):
                     print('debug:', self.process.destinate_path)
-                    mes.send_DWRQ(
-                        self.process.destinate_path,
+                    mes.send_DRRQ(
+                        self.process.source_path,
                         self.offset,
                         min(MAX_BUF, self.length - self.mark_byte),
-                        self.process.source_path
+                        self.process.destinate_path
                     )
                     self.mark_byte += MAX_BUF
                     self.progress = self.mark_byte / self.length
@@ -235,37 +237,41 @@ class downloadProcess():
         
     #simply divide data length into segments
     def start(self, connections: list):
-        """upload file to server
-        client path should be a file (because we don't have upload folder yet :v)
-        server path should be a folder"""
-        #server_path should already be valid since we get it from the directory request
+        """download file from server
+        server path should be a file (can't download folder for now...)
+        client path should be a folder
+        """
 
 #region path checking
         try:
-            if not os.path.exists(self.source_path):
-                raise FileNotFoundError('cant find file to upload')
+            if(not os.path.exists(self.folder_path)):    #path not found, dev error
+                raise FileNotFoundError('path not found')
+            if not os.path.isdir(self.folder_path):
+                raise OSError('not folder path')
             
-            if os.path.isdir(self.source_path):
-                raise NotImplementedError('chua cai :v')
-            
-            file_size = os.stat(self.source_path).st_size
+            #this might not work on Linux
             file_name = os.path.basename(os.path.normpath(self.source_path))
-            self.destinate_path = os.path.join(self.destinate_path, file_name)
-            print('client path:', self.source_path)
-            print('server path:', self.destinate_path)
+            self.destinate_path = os.path.join(self.folder_path, file_name)
+            if os.path.exists(self.destinate_path):   #file already exist on client, user decide
+                raise FileExistsError('file already exist')
+
+            self.file_size = connections[0].send_RRQ(self.source_path)   #might raise file not exist
+            if shutil.disk_usage(self.folder_path)[2] < self.file_size:
+                raise OSError('client diskspace full')
+
+            self.destinate_path = self.destinate_path + '.downloading'
 
 #region fragment data into segment
             self.status = 'start'
             self.connections = connections
 
-            connections[0].send_WRQ(self.destinate_path, file_size)    #might raise file already exist or out of disk
             connection_ = len(connections)
-            segment_length = file_size // connection_
+            segment_length = self.file_size // connection_
 
             for i in range(connection_):
                 offset = i * segment_length
-                length = min(segment_length, file_size - offset)
-                self.segments.append(UploadProcess.Segment(offset, length, self))
+                length = min(segment_length, self.file_size - offset)
+                self.segments.append(DownloadProcess.Segment(offset, length, self))
     
             # If the last segment is smaller than segment_length
             if self.segments:
@@ -287,8 +293,13 @@ class downloadProcess():
     #need to handle differently went update to dynamic connection
     def startProcess(self):
         try:
-            if self.status != 'uploading...':
-                self.status = 'uploading...'
+            if self.status == 'start':
+                with open(self.destinate_path, "wb") as f:
+                    f.seek(self.file_size - 1)
+                    f.write(b"\0")
+
+            if self.status != 'downloading...':
+                self.status = 'downloading...'
                 for segment, connection in zip(self.segments, self.connections):
                     segment.start(connection)
 
@@ -296,10 +307,11 @@ class downloadProcess():
                     segment.thread.join()
 
                 if(self.status != 'pause' or self.status != 'error'):
-                    self.connections[0].send_FWRQ(self.destinate_path)
+                    new_file_path = os.path.splitext(self.destinate_path)[0]
+                    os.rename(self.destinate_path, get_unique_filename(new_file_path, self.folder_path))
                     self.status = 'finish'
             else:
-                raise Exception('already uploading')
+                raise Exception('already downloading...')
                 #for handling with client pressing button multiple time
         except Exception as error:
             print('Process error:', error)
