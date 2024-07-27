@@ -1,6 +1,5 @@
 import customtkinter
 import socket
-import ipaddress
 from PIL import Image
 
 customtkinter.set_appearance_mode("System")
@@ -10,6 +9,12 @@ WINDOW_WIDTH = 1000
 MENU_COLLAPSED_WIDTH = 45
 MENU_EXPANDED_WIDTH = 167
 DELTA_WIDTH = 10
+FILE_ITEM_WIDTH = 75
+FILE_ITEM_HEIGHT = 100
+SPACE_X = 20
+SPACE_Y = 20
+SCROLL_FRAME_WIDTH = 740
+SCROLL_FRAME_HEIGHT = 400
 
 
 window = customtkinter.CTk()
@@ -246,19 +251,222 @@ setting_frame.place(relwidth=1.0, relheight=1.0)
 raise_frame(download_frame)
 
 # Download
+all_data = ["file1.txt", "file2.pdf", "file3.jpg", "file4.txt", "file5.txt", "file6.pdf", "file7.jpg", "file8.txt", 
+            "file9.txt", "file10.pdf", "file13.jpg", "file14.txt", "file15.txt", "file16.pdf", "file17.jpg", "file18.txt", "file1.txt", "file2.pdf", "file3.jpg", "file4.txt", "file5.txt", "file6.pdf", "file7.jpg", "file8.txt", 
+            "file9.txt", "file10.pdf", "file13.jpg", "file14.txt", "file15.txt", "file16.pdf", "file17.jpg", "file18.txt"]
+
+tool_frame = customtkinter.CTkFrame(download_frame, fg_color="white", height=60)
+tool_frame.place(relwidth=1.0, x=0, y=0)
+
+def create_file_item(filename, logofile, page_frame):
+     file_button = customtkinter.CTkButton(
+          page_frame, 
+          height=FILE_ITEM_HEIGHT, 
+          width=FILE_ITEM_WIDTH, 
+          image=logofile,
+          text=filename,
+          compound="top",
+          fg_color="white",
+          text_color="black",
+          hover_color="silver"
+     )
+     return file_button
+
+def filter_extension(extension, data):
+     if extension == "all":
+          return data
+     res_fillter = []
+     for item in data:
+          if item.endswith(f".{extension}"):
+               res_fillter.append(item)
+     return res_fillter
+
+def deactivate_extension():
+     all_extension.configure(fg_color="lightblue")
+     pdf_extension.configure(fg_color="lightblue")
+     text_extension.configure(fg_color="lightblue")
+     picture_extension.configure(fg_color="lightblue")
+
+def indicate_page_extension(but, page_frame, scroll_frame, extension):
+     deactivate_extension()
+     if menu_frame.cget("width") > MENU_COLLAPSED_WIDTH:
+          folding_menu()
+     but.configure(fg_color="#6699FF", text_color="black")
+     data = filter_extension(extension, all_data)
+
+     displayFile(scroll_frame, data)
+     raise_frame(page_frame)
+  
+def displayFile(page_frame, data):
+     for widget in page_frame.winfo_children():
+          widget.destroy()
+    
+     current_row = customtkinter.CTkFrame(page_frame, fg_color="white")
+     current_row.pack(fill="x", padx=20, pady=10)
+    
+     row_width = 0
+     for item in data:
+          file_ext = item[-3:]
+          if file_ext == 'txt':
+               logofile = logo_textFile
+          elif file_ext == 'pdf':
+               logofile = logo_pdfFile
+          elif file_ext == 'jpg':
+               logofile = logo_imageFile
+          else:
+               continue
+        
+          newItem = create_file_item(item, logofile, current_row)
+          newItem.pack(side="left", padx=(0, SPACE_X))
+        
+          row_width += (FILE_ITEM_WIDTH + SPACE_X)
+          if row_width > SCROLL_FRAME_WIDTH - 90:
+               current_row = customtkinter.CTkFrame(page_frame, fg_color="white")
+               current_row.pack(fill="x", padx=20, pady=10)
+               row_width = 0
+
+all_extension = customtkinter.CTkButton(
+     tool_frame,
+     text="All File",
+     font=("Helvetica", 14),
+     width=65,
+     height=17,
+     fg_color="#6699FF",
+     text_color="black",
+     hover_color="#6699FF",
+     command=lambda: indicate_page_extension(all_extension, all_extension_frame, scroll_frame_all_extension, "all")
+)
+all_extension.place(x=50, y=30)
+
+
+pdf_extension = customtkinter.CTkButton(
+     tool_frame,
+     text="PDF File",
+     font=("Helvetica", 14),
+     width=65,
+     height=17,
+     fg_color="lightblue",
+     text_color="black",
+     hover_color="#6699FF",
+     command=lambda: indicate_page_extension(pdf_extension, pdf_extension_frame, scroll_frame_pdf_extension, "pdf")
+)
+pdf_extension.place(x=150, y=30)
+
+text_extension = customtkinter.CTkButton(
+     tool_frame,
+     text="Text File",
+     font=("Helvetica", 14),
+     width=65,
+     height=17,
+     fg_color="lightblue",
+     text_color="black",
+     hover_color="#6699FF",
+     command=lambda: indicate_page_extension(text_extension, text_extension_frame, scroll_frame_text_extension, "txt")
+)
+text_extension.place(x=250, y=30)
+
+
+picture_extension = customtkinter.CTkButton(
+     tool_frame,
+     text="Picture",
+     font=("Helvetica", 14),
+     width=65,
+     height=17,
+     fg_color="lightblue",
+     text_color="black",
+     hover_color="#6699FF",
+     command=lambda: indicate_page_extension(picture_extension, picture_extension_frame, scroll_frame_picture_extension, "jpg")
+)
+picture_extension.place(x=350, y=30)
+
+
+search_box = customtkinter.CTkEntry(
+     tool_frame,
+     width=300,
+     height=28,
+     placeholder_text="Search file",
+     font=("", 17)
+
+)
+search_box.place(x=450, y=30)
+
+
+
+
+list_file_frame = customtkinter.CTkFrame(download_frame, fg_color="white")
+list_file_frame.place(relwidth=1.0, relheight=1.0, x=0, y=60)
+
+all_extension_frame = customtkinter.CTkFrame(list_file_frame, fg_color="white")
+all_extension_frame.place(relwidth=1.0, relheight=1.0)
+
+scroll_frame_all_extension = customtkinter.CTkScrollableFrame(
+     all_extension_frame, 
+     height= SCROLL_FRAME_HEIGHT, 
+     width=SCROLL_FRAME_WIDTH,
+     orientation="vertical",
+     fg_color="white"
+)
+scroll_frame_all_extension.place(x=0, y=0)
+
+pdf_extension_frame = customtkinter.CTkFrame(list_file_frame, fg_color="white")
+pdf_extension_frame.place(relwidth=1.0, relheight=1.0)
+
+scroll_frame_pdf_extension = customtkinter.CTkScrollableFrame(
+     pdf_extension_frame, 
+     height= SCROLL_FRAME_HEIGHT, 
+     width=SCROLL_FRAME_WIDTH,
+     orientation="vertical",
+     fg_color="white"
+)
+scroll_frame_pdf_extension.place(x=0, y=0)
+
+text_extension_frame = customtkinter.CTkFrame(list_file_frame, fg_color="white")
+text_extension_frame.place(relwidth=1.0, relheight=1.0)
+scroll_frame_text_extension = customtkinter.CTkScrollableFrame(
+     text_extension_frame, 
+     height= SCROLL_FRAME_HEIGHT, 
+     width=SCROLL_FRAME_WIDTH,
+     orientation="vertical",
+     fg_color="white"
+)
+scroll_frame_text_extension.place(x=0, y=0)
+
+picture_extension_frame = customtkinter.CTkFrame(list_file_frame, fg_color="white")
+picture_extension_frame.place(relwidth=1.0, relheight=1.0)
+scroll_frame_picture_extension = customtkinter.CTkScrollableFrame(
+     picture_extension_frame, 
+     height= SCROLL_FRAME_HEIGHT, 
+     width=SCROLL_FRAME_WIDTH,
+     orientation="vertical",
+     fg_color="white"
+)
+scroll_frame_picture_extension.place(x=0, y=0)
+
+
+
+
 logo_pdfFile = customtkinter.CTkImage(
      dark_image=Image.open("Image/pdfFile.png"),
      light_image=Image.open("Image/pdfFile.png"),
+     size=(60, 60)
 )
 
-image = customtkinter.CTkLabel(
-     download_frame,
-     image=logo_pdfFile,
-     text="aaaaaaaa",
-     
+logo_textFile = customtkinter.CTkImage(
+     dark_image=Image.open("Image/txtFile.png"),
+     light_image=Image.open("Image/txtFile.png"),
+     size=(60, 60)
 )
-image.place(x=10, y=10)
 
+logo_imageFile = customtkinter.CTkImage(
+     dark_image=Image.open("Image/image.png"),
+     light_image=Image.open("Image/image.png"),
+     size=(60, 60)
+)
+
+indicate_page_extension(all_extension, all_extension_frame, scroll_frame_all_extension, "all")
+for i in range(0, 100):
+     but = customtkinter.CTkButton(scroll_frame_all_extension)
+     but.pack(pady=10)
 
 
 # Setting
@@ -329,7 +537,7 @@ client_icon = customtkinter.CTkImage(
      light_image=Image.open("Image/computer.png"),
      size=(125, 125)
 )
-"fuck u"
+
 client_icon_label = customtkinter.CTkLabel(client_information_frame, image=client_icon, text="")
 client_icon_label.place(x=0, y=30)
 
