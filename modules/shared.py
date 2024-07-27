@@ -70,7 +70,7 @@ def recv_all(sock, n):
 
 
 import os
-def get_unique_filename(filename):
+def get_unique_filename(filename, folder):
     """
     Generate a unique filename by appending a number if needed.
     """
@@ -78,7 +78,7 @@ def get_unique_filename(filename):
     new_filename = filename
     counter = 1
 
-    while os.path.exists(os.path.join(SERVER_DATA_PATH, new_filename)):
+    while os.path.exists(os.path.join(folder, new_filename)):
         new_filename = f"{base}({counter}){extension}"
         counter += 1
 
