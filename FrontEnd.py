@@ -1,9 +1,13 @@
 import customtkinter
 import socket
+import time
 from PIL import Image
 
+# Set mode and default theme
 customtkinter.set_appearance_mode("System")
 customtkinter.set_default_color_theme("blue")
+
+# Define constant
 WINDOW_HEIGHT = 600
 WINDOW_WIDTH = 1000
 MENU_COLLAPSED_WIDTH = 45
@@ -13,16 +17,17 @@ FILE_ITEM_WIDTH = 75
 FILE_ITEM_HEIGHT = 100
 SPACE_X = 20
 SPACE_Y = 20
-SCROLL_FRAME_WIDTH = 740
-SCROLL_FRAME_HEIGHT = 400
+SCROLL_FRAME_WIDTH = 700
+SCROLL_FRAME_HEIGHT = 500
 
-
+# Initialize the main window
 window = customtkinter.CTk()
 window.title("File Transfer")
 window.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
 window.resizable(False, False)
 
-
+#-------------------------------------- {{ MENU AREA }} --------------------------------------
+# Function
 def resize_content_frame():
      menu_width = menu_frame.cget("width")
      content_width = WINDOW_WIDTH - menu_width
@@ -73,7 +78,7 @@ def deactivate():
 def raise_frame(frame):
     frame.tkraise()
 
-#------------------------------ {{ MENU AREA }} ------------------------------
+
 menu_frame = customtkinter.CTkFrame(
      window,
      height=WINDOW_HEIGHT,
@@ -82,7 +87,7 @@ menu_frame = customtkinter.CTkFrame(
 )
 menu_frame.place(relheight = 1.0, x=0, y=0)
 
-#Tonggle Button
+
 toggle_icon = customtkinter.CTkImage(
      dark_image=Image.open("Image/menu.png"),
      light_image=Image.open("Image/menu.png"),
@@ -117,8 +122,6 @@ def indicate_download():
           folding_menu()
      
      raise_frame(download_frame)
-
-
 
 download_icon = customtkinter.CTkImage(
      dark_image=Image.open("Image/download.png"),
@@ -230,7 +233,7 @@ setting_indicate = customtkinter.CTkLabel(
 setting_indicate.place(x=0, y=200)
 
 
-#------------------------------ {{ CONTENT AREA }} ------------------------------
+#------------------------------------------ {{ CONTENT AREA }} ------------------------------------------
 content_frame = customtkinter.CTkFrame(
      window,
      fg_color="white",
@@ -250,10 +253,17 @@ setting_frame.place(relwidth=1.0, relheight=1.0)
 
 raise_frame(download_frame)
 
-# Download
+# // Download Page \\
 all_data = ["file1.txt", "file2.pdf", "file3.jpg", "file4.txt", "file5.txt", "file6.pdf", "file7.jpg", "file8.txt", 
             "file9.txt", "file10.pdf", "file13.jpg", "file14.txt", "file15.txt", "file16.pdf", "file17.jpg", "file18.txt", "file1.txt", "file2.pdf", "file3.jpg", "file4.txt", "file5.txt", "file6.pdf", "file7.jpg", "file8.txt", 
+            "file9.txt", "file10.pdf", "file13.jpg", "file34.txt", "file15.txt", "file16.pdf", "file17.jpg", "file18.txt", "file1.txt", "file2.pdf", "file3.jpg", "file4.txt", "file5.txt", "file6.pdf", "file7.jpg", "file8.txt", 
+            "file9.txt", "file10.pdf", "file13.jpg", "file24.txt", "file15.txt", "file16.pdf", "file17.jpg", "file18.txt", "file1.txt", "file2.pdf", "file3.jpg", "file4.txt", "file5.txt", "file6.pdf", "file7.jpg", "file8.txt", 
+            "file9.txt", "file10.pdf", "file13.jpg", "file74.txt", "file15.txt", "file16.pdf", "file17.jpg", "file18.txt", "file1.txt", "file2.pdf", "file3.jpg", "file4.txt", "file5.txt", "file6.pdf", "file7.jpg", "file8.txt", 
+            "file9.txt", "file10.pdf", "file13.jpg", "file14.txt", "file15.txt", "file16.pdf", "file17.jpg", "file18.txt", "file1.txt", "file2.pdf", "file3.jpg", "file4.txt", "file5.txt", "file6.pdf", "file7.jpg", "file8.txt", 
+            "file9.txt", "file30.pdf", "file13.jpg", "file14.txt", "file15.txt", "file16.pdf", "file17.jpg", "file18.txt", "file1.txt", "file2.pdf", "file3.jpg", "file4.txt", "file5.txt", "file6.pdf", "file7.jpg", "file8.txt", 
+            "file9.txt", "file50.pdf", "file13.jpg", "file14.txt", "file15.txt", "file16.pdf", "file17.jpg", "file18.txt", "file1.txt", "file2.pdf", "file3.jpg", "file4.txt", "file5.txt", "file6.pdf", "file7.jpg", "file8.txt", 
             "file9.txt", "file10.pdf", "file13.jpg", "file14.txt", "file15.txt", "file16.pdf", "file17.jpg", "file18.txt"]
+selected_files = []
 
 tool_frame = customtkinter.CTkFrame(download_frame, fg_color="white", height=60)
 tool_frame.place(relwidth=1.0, x=0, y=0)
@@ -268,7 +278,8 @@ def create_file_item(filename, logofile, page_frame):
           compound="top",
           fg_color="white",
           text_color="black",
-          hover_color="silver"
+          hover_color="silver",
+          command=lambda:add_download_list(filename)
      )
      return file_button
 
@@ -296,7 +307,40 @@ def indicate_page_extension(but, page_frame, scroll_frame, extension):
 
      displayFile(scroll_frame, data)
      raise_frame(page_frame)
-  
+
+def add_download_list(filename):
+     if filename not in selected_files:
+          selected_files.append(filename)
+          display_download_list()
+
+def display_download_list():
+     for widget in list_file_selected_scroll_frame.winfo_children():
+          widget.destroy()
+
+     for file in selected_files:
+          checkVar = customtkinter.StringVar(value="on")
+          checbox_selected = customtkinter.CTkCheckBox(
+               list_file_selected_scroll_frame,
+               text=file,
+               variable=checkVar,
+               font=("", 18),
+               checkbox_height=18,
+               checkbox_width=18,
+               corner_radius=50,
+               onvalue="on",
+               offvalue="off",
+               hover=True,
+               hover_color="red",
+               fg_color="green",
+               command=lambda f=file, v=checkVar: delete_from_download_list(f, v)
+          )
+          checbox_selected.pack(anchor='w', padx=10, pady=5)
+
+def delete_from_download_list(filename, checkVar):
+     if checkVar.get() == "off":
+          selected_files.remove(filename)
+          display_download_list()
+
 def displayFile(page_frame, data):
      for widget in page_frame.winfo_children():
           widget.destroy()
@@ -324,6 +368,10 @@ def displayFile(page_frame, data):
                current_row = customtkinter.CTkFrame(page_frame, fg_color="white")
                current_row.pack(fill="x", padx=20, pady=10)
                row_width = 0
+
+def clear_download_list():
+     selected_files.clear()
+     display_download_list()
 
 all_extension = customtkinter.CTkButton(
      tool_frame,
@@ -365,7 +413,6 @@ text_extension = customtkinter.CTkButton(
 )
 text_extension.place(x=250, y=30)
 
-
 picture_extension = customtkinter.CTkButton(
      tool_frame,
      text="Picture",
@@ -379,7 +426,6 @@ picture_extension = customtkinter.CTkButton(
 )
 picture_extension.place(x=350, y=30)
 
-
 search_box = customtkinter.CTkEntry(
      tool_frame,
      width=300,
@@ -391,25 +437,33 @@ search_box = customtkinter.CTkEntry(
 search_box.place(x=450, y=30)
 
 
-
-
 list_file_frame = customtkinter.CTkFrame(download_frame, fg_color="white")
 list_file_frame.place(relwidth=1.0, relheight=1.0, x=0, y=60)
 
-all_extension_frame = customtkinter.CTkFrame(list_file_frame, fg_color="white")
-all_extension_frame.place(relwidth=1.0, relheight=1.0)
+all_extension_frame = customtkinter.CTkFrame(
+     list_file_frame, 
+     fg_color="black", 
+     width=SCROLL_FRAME_WIDTH + 24, 
+     height=SCROLL_FRAME_HEIGHT + 15
+)
+all_extension_frame.place(x=0, y=0)
 
 scroll_frame_all_extension = customtkinter.CTkScrollableFrame(
-     all_extension_frame, 
-     height= SCROLL_FRAME_HEIGHT, 
+     all_extension_frame,
+     height= SCROLL_FRAME_HEIGHT,
      width=SCROLL_FRAME_WIDTH,
      orientation="vertical",
-     fg_color="white"
+     fg_color="white",
 )
 scroll_frame_all_extension.place(x=0, y=0)
 
-pdf_extension_frame = customtkinter.CTkFrame(list_file_frame, fg_color="white")
-pdf_extension_frame.place(relwidth=1.0, relheight=1.0)
+
+pdf_extension_frame = customtkinter.CTkFrame(     
+     list_file_frame, fg_color="black", 
+     width=SCROLL_FRAME_WIDTH + 24, 
+     height=SCROLL_FRAME_HEIGHT + 15
+     )
+pdf_extension_frame.place(x=0, y=0)
 
 scroll_frame_pdf_extension = customtkinter.CTkScrollableFrame(
      pdf_extension_frame, 
@@ -420,8 +474,14 @@ scroll_frame_pdf_extension = customtkinter.CTkScrollableFrame(
 )
 scroll_frame_pdf_extension.place(x=0, y=0)
 
-text_extension_frame = customtkinter.CTkFrame(list_file_frame, fg_color="white")
-text_extension_frame.place(relwidth=1.0, relheight=1.0)
+
+text_extension_frame = customtkinter.CTkFrame(
+     list_file_frame, fg_color="black", 
+     width=SCROLL_FRAME_WIDTH + 24, 
+     height=SCROLL_FRAME_HEIGHT + 15
+)
+text_extension_frame.place(x=0, y=0)
+
 scroll_frame_text_extension = customtkinter.CTkScrollableFrame(
      text_extension_frame, 
      height= SCROLL_FRAME_HEIGHT, 
@@ -431,8 +491,13 @@ scroll_frame_text_extension = customtkinter.CTkScrollableFrame(
 )
 scroll_frame_text_extension.place(x=0, y=0)
 
-picture_extension_frame = customtkinter.CTkFrame(list_file_frame, fg_color="white")
-picture_extension_frame.place(relwidth=1.0, relheight=1.0)
+picture_extension_frame = customtkinter.CTkFrame(
+     list_file_frame, fg_color="black", 
+     width=SCROLL_FRAME_WIDTH + 24, 
+     height=SCROLL_FRAME_HEIGHT + 15
+)
+picture_extension_frame.place(x=0, y=0)
+
 scroll_frame_picture_extension = customtkinter.CTkScrollableFrame(
      picture_extension_frame, 
      height= SCROLL_FRAME_HEIGHT, 
@@ -441,8 +506,6 @@ scroll_frame_picture_extension = customtkinter.CTkScrollableFrame(
      fg_color="white"
 )
 scroll_frame_picture_extension.place(x=0, y=0)
-
-
 
 
 logo_pdfFile = customtkinter.CTkImage(
@@ -464,10 +527,52 @@ logo_imageFile = customtkinter.CTkImage(
 )
 
 indicate_page_extension(all_extension, all_extension_frame, scroll_frame_all_extension, "all")
-for i in range(0, 100):
-     but = customtkinter.CTkButton(scroll_frame_all_extension)
-     but.pack(pady=10)
 
+list_file_download = customtkinter.CTkFrame(
+     list_file_frame,
+     width=225,
+     fg_color="white"
+)
+list_file_download.place(x=730, y=0, relheight=1.0)
+
+list_file_selected_title = customtkinter.CTkLabel(
+     list_file_download,
+     text="Selected",
+     font=("Bold", 20),
+     text_color="black",
+)
+list_file_selected_title.place(x=0, y=0)
+
+delete_icon = customtkinter.CTkImage(
+     dark_image=Image.open("Image/delete.png"),
+     light_image=Image.open("Image/delete.png"),
+     size=(25, 25)
+)
+clear_download_list_button = customtkinter.CTkButton(
+     list_file_download,
+     text="",
+     image=delete_icon,
+     font=("", 15),
+     width=20,
+     fg_color="white",
+     hover_color="lightblue",
+     command=clear_download_list
+)
+clear_download_list_button.place(x=175, y=0)
+
+list_file_selected_scroll_frame = customtkinter.CTkScrollableFrame(
+     list_file_download,
+     fg_color="#EEEEEE",
+     height=150
+)
+list_file_selected_scroll_frame.place(relwidth=1.0, y=35)
+
+download_button = customtkinter.CTkButton(
+     list_file_download,
+     text="Download",
+     font=("Bold", 20)
+)
+download_button.place(x=40, y=260)
 
 # Setting
 def change_port_sever(chosent):
