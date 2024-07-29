@@ -203,6 +203,21 @@ def process_DWRQ(sock, ip):
     return True
 
 
+def get_unique_filename(filename):
+    """
+    Generate a unique filename by appending a number if needed.
+    """
+    base, extension = os.path.splitext(filename)
+    new_filename = filename
+    counter = 1
+
+    while os.path.exists(os.path.join(SERVER_DATA_PATH, new_filename)):
+        new_filename = f"{base}({counter}){extension}"
+        counter += 1
+
+    return new_filename
+
+
 def process_FWRQ(sock, ip):
     """process finish write request
     Receive structure:
@@ -223,7 +238,7 @@ def process_FWRQ(sock, ip):
         return False
     file_upload_path = file_path + ".uploading"
     new_file_path = os.path.splitext(file_upload_path)[0]
-    os.rename(file_upload_path, get_unique_filename(new_file_path, SERVER_DATA_PATH))
+    os.rename(file_upload_path, get_unique_filename(new_file_path))
     sock.sendall(struct.pack(">B", SUCCESS))
     log(f"[INFO]: {ip} got a success on {OP_STR[FWRQ]}")
     return True
