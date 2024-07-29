@@ -15,6 +15,7 @@ import modules.message as msg
 HOST = None
 PORT = None
 disconnect_event = threading.Event()
+directory_lock = threading.Lock()
 server_directory = {}
 flatten_server_directory = {}
 
@@ -57,9 +58,11 @@ def monitor_directory(msgr):
         msgr.sub_DTRQ()
         global server_directory, flatten_server_directory
         while not disconnect_event.is_set():
-            server_directory = msgr.recv_DTRQ()
-            flatten_server_directory = flatten_directory()
-            process_directory(server_directory)
+            data = msgr.recv_DTRQ()
+            with directory_lock:
+                server_directory = data
+                flatten_server_directory = flatten_directory()
+                update_directory()
     except (OSError, msg.messengerError) as e:
         if not disconnect_event.is_set():
             tk.messagebox.showerror("Error", str(e))
@@ -74,39 +77,49 @@ def format_bytes(size):
     while size >= power and n < len(units) - 1:
         size /= power
         n += 1
-    return f"{size:.2f} {units[n]}"
+    formatted_size = f"{size:.2f}".rstrip("0").rstrip(".")
+    return f"{formatted_size} {units[n]}"
 
 
-def process_directory(item, parent=""):
-    if item["type"] == "folder":
-        if not treeview.exists(item["path"]):
-            treeview.insert(
-                parent,
-                0,
-                item["path"],
-                text=item["name"],
-                image=folder_image,
-            )
-        else:
-            children = treeview.get_children(item["path"])
-            for child in children:
-                if child not in flatten_server_directory:
-                    treeview.delete(child)
-        for child in item.get("children", []):
-            process_directory(child, item["path"])
-    elif item["type"] == "file":
-        if not treeview.exists(item["path"]):
-            treeview.insert(
-                parent,
-                0,
-                item["path"],
-                text=item["name"],
-                image=file_image,
-                values=(
-                    time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(item["mtime"])),
-                    format_bytes(item["size"]),
-                ),
-            )
+def update_directory(query=""):
+    def process_directory(
+        item,
+        query="",
+        parent="",
+    ):
+        if item["type"] == "folder":
+            if not treeview.exists(item["path"]):
+                treeview.insert(
+                    parent,
+                    0,
+                    item["path"],
+                    text=item["name"],
+                    image=folder_image,
+                )
+            else:
+                children = treeview.get_children(item["path"])
+                for child in children:
+                    if child not in flatten_server_directory or query not in child:
+                        treeview.delete(child)
+            for child in item.get("children", []):
+                process_directory(child, query, item["path"])
+        elif item["type"] == "file":
+            if query in item["name"] and not treeview.exists(item["path"]):
+                treeview.insert(
+                    parent,
+                    0,
+                    item["path"],
+                    text=item["name"],
+                    image=file_image,
+                    values=(
+                        time.strftime(
+                            "%Y-%m-%d %H:%M:%S", time.localtime(item["mtime"])
+                        ),
+                        format_bytes(item["size"]),
+                    ),
+                )
+
+    process_directory(server_directory, query.lower())
 
 
 def validate_input():
@@ -135,6 +148,7 @@ def connect():
     disconnect_event.clear()
     directory_thread = Thread(target=monitor_directory, args=(dir_msg,), daemon=True)
     directory_thread.start()
+
     connect_button.config(state="disabled")
     upload_button.config(state="normal")
     download_button.config(state="normal")
@@ -146,6 +160,8 @@ def connect():
 
 
 def disconnect():
+    if directory_lock.locked():
+        return
     disconnect_event.set()
     msg.disconnect_all()
     treeview.delete(*treeview.get_children())
@@ -191,6 +207,21 @@ def folder():
         mes.close()
 
 
+def popup_menu(event):
+    selected_item = treeview.identify_row(event.y)
+    if selected_item not in treeview.selection():
+        treeview.selection_set(selected_item)
+
+    popup.tk_popup(event.x_root, event.y_root)
+
+
+def search_dir(*args):
+    if directory_lock.locked():
+        return
+    with directory_lock:
+        update_directory(search_var.get())
+
+
 explorer_objects = {}
 
 root = tk.Tk()
@@ -201,6 +232,12 @@ style = ttk.Style(root)
 style.theme_use("clam")
 
 main_frame = ttk.Frame(root, padding=(10, 10, 10, 10))
+
+popup = tk.Menu(root, tearoff=0)
+popup.add_command(label="Delete", command=delete)
+popup.add_command(label="Make folder", command=folder)
+popup.add_command(label="Download", command=download)
+popup.add_command(label="Upload", command=upload)
 
 input_frame = ttk.Frame(main_frame)
 connection_frame = ttk.Frame(input_frame)
@@ -227,19 +264,28 @@ download_button = ttk.Button(
 upload_button = ttk.Button(
     operation_frame, text="Upload", state="disabled", command=upload
 )
+search_frame = ttk.Frame(input_frame)
+search_var = tk.StringVar()
+search_var.trace("w", search_dir)
+search_label = ttk.Label(search_frame, text="Query name:")
+search_entry = ttk.Entry(search_frame, textvariable=search_var)
 dir_frame = ttk.Frame(main_frame)
+
 treeview = ttk.Treeview(dir_frame)
 treeview["columns"] = ("mtime", "size")
 treeview.heading("#0", text="Server's directory", anchor="w")
 treeview.heading("mtime", text="Data modified", anchor="w")
 treeview.heading("size", text="Size", anchor="w")
+treeview.bind("<Button-3>", popup_menu)
 vsb = ttk.Scrollbar(dir_frame, orient="vertical", command=treeview.yview)
-hsb = ttk.Scrollbar(dir_frame, orient="horizontal", command=treeview.xview)
-treeview.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+treeview.configure(yscrollcommand=vsb.set)
 
 main_frame.grid(row=0, column=0, sticky="nwes")
 input_frame.grid(row=0, column=0, stick="nwes")
 connection_frame.grid(row=0, column=0, sticky="w")
+search_frame.grid(row=3, column=0, sticky="ew")
+search_label.grid(row=0, column=0, padx=4, pady=4, sticky="w")
+search_entry.grid(row=0, column=1, padx=4, pady=4, sticky="ew")
 host_label.grid(row=0, column=0, padx=4, pady=4, sticky="w")
 host_entry.grid(row=0, column=1, padx=4, pady=4, sticky="w")
 port_label.grid(row=0, column=2, padx=4, pady=4, sticky="w")
@@ -254,12 +300,12 @@ upload_button.grid(row=0, column=3, padx=4, pady=4, sticky="w")
 dir_frame.grid(row=1, column=0, sticky="nsew")
 treeview.grid(row=0, column=0, sticky="nsew")
 vsb.grid(row=0, column=1, sticky="ns")
-hsb.grid(row=1, column=0, sticky="ew")
 
 root.grid_columnconfigure(0, weight=1)
 root.grid_rowconfigure(0, weight=1)
 main_frame.grid_columnconfigure(0, weight=1)
 main_frame.grid_rowconfigure(1, weight=1)
+search_frame.grid_columnconfigure(1, weight=1)
 # input_frame.grid_columnconfigure(1, weight=1)
 dir_frame.grid_rowconfigure(0, weight=1)
 dir_frame.grid_columnconfigure(0, weight=1)
