@@ -5,6 +5,7 @@ import shutil
 from math import ceil
 import threading
 import queue
+import time
 
 simpleThreadNumber = 8
 
@@ -13,17 +14,27 @@ simpleThreadNumber = 8
 #connections manager and process manager
 #use static amount of connections for now
 #haven't test yet, also
-class UploadQueue():
+class Queue(queue.Queue):
+    def peek(self):
+        with self.mutex:
+            if not self._qsize():
+                raise queue.Empty
+            return self.queue[0]
+
+class ConnectionManager():
     "Class to manage the hold upload process, also handle connection"
     def __init__(self, host, port):
         self.connections = []
-        self.queue = queue.Queue
-        self.errorQueue = queue.Queue
+        self.max_connnection = simpleThreadNumber
+        self.queue = Queue(0)
+        self.process = []
+        self.errorQueue = Queue(0)
         self.status = 'wait'
-        for i in range(simpleThreadNumber):
-            self.connections.append(messengers(host, port))
+        for i in range(self.max_connnection):
+            self.connections.append(messenger(host, port))
         
-        self.manager = threading.Thread(target=self.manager())
+        self.manager = threading.Thread(target=self.manager, daemon=True)
+        self.manager.start()
 
     
     def processUpload(self, client_path, server_folder):
@@ -35,21 +46,29 @@ class UploadQueue():
     #for now, only support upload 1 file at a time
     #you can call process multiple time though :v
     def manager(self):
-        while(self.status != 'stop'):
-            if(self.queue.not_empty):
+        while self.status != 'stop':
+            print('manager is running...')
+            time.sleep(1)
+            if not self.queue.empty():
                 self.startProcess()
         
     def startProcess(self):
         try:
-            process[0].start(self.connections)
+            # print("start process...")
+            # print('item',self.queue)
+            process = self.queue.get()
+            self.process.append(process)
+            thread = threading.Thread(target=process.start, args=(self.connections,))
+            thread.start()
+            # process.start(self.connections)
         except:
-            self.errorQueue.put(self.queue.get())
+            self.errorQueue.put(process)
 
     def stop(self):
         self.status = 'stop'
 
     def pause(self):
-        self.queue[0].pauseProcess()
+        self.queue.peek().pauseProcess()
 #endregion
 
 
@@ -66,6 +85,9 @@ class UploadProcess():
         self.connections = []
         self.status = 'wait'
         self.error = 'null'
+        
+    def __str__(self):
+        return f"({self.source_path}, {self.destinate_path}, {self.getProgress()})"
 
 #region segment Class
     class Segment():
@@ -77,6 +99,7 @@ class UploadProcess():
             self.thread = None
             self.mark_byte = 0
             self.progress = 0
+            self.cnt = 0
 
         def __str__(self):
             return f"({self.offset}, {self.length})"
@@ -87,10 +110,14 @@ class UploadProcess():
 
             try:
                 while(self.mark_byte < self.length and self.process.status != 'pause'):
-                    print('debug:', self.process.destinate_path)
+                    self.cnt += 1
+                    if self.cnt == 100:
+                        print('progress', self.offset, self.progress)
+                        self.cnt = 0
+
                     mes.send_DWRQ(
                         self.process.destinate_path,
-                        self.offset,
+                        self.offset + self.mark_byte,
                         min(MAX_BUF, self.length - self.mark_byte),
                         self.process.source_path
                     )
@@ -126,8 +153,8 @@ class UploadProcess():
             
             file_name = os.path.basename(os.path.normpath(self.source_path))
             self.destinate_path = os.path.join(self.destinate_path, file_name)
-            print('client path:', self.source_path)
-            print('server path:', self.destinate_path)
+            # print('client path:', self.source_path)
+            # print('server path:', self.destinate_path)
 
 #region fragment data into segment
             self.status = 'start'
@@ -144,7 +171,7 @@ class UploadProcess():
     
             # If the last segment is smaller than segment_length
             if self.segments:
-                self.segments[-1].length = self.self.file_size - self.segments[-1].offset
+                self.segments[-1].length = self.file_size - self.segments[-1].offset
 
 #region start process
             self.startProcess()
@@ -227,7 +254,7 @@ class DownloadProcess():
 
             try:
                 while(self.mark_byte < self.length and self.process.status != 'pause'):
-                    print('debug:', self.process.destinate_path)
+                    # print('debug:', self.process.destinate_path)
                     mes.send_DRRQ(
                         self.process.source_path,
                         self.offset,
