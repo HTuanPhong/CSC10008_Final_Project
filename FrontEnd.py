@@ -43,7 +43,8 @@ def extending_amination():
                current_width = MENU_EXPANDED_WIDTH
           menu_frame.configure(width=current_width)
           resize_content_frame()
-          window.after(ms=8, func=extending_amination)
+          if not is_folding:
+               window.after(ms=8, func=extending_amination)
 
 def folding_amination():
      current_width = menu_frame.cget("width")
@@ -54,14 +55,19 @@ def folding_amination():
                current_width = MENU_COLLAPSED_WIDTH
           menu_frame.configure(width=current_width)
           resize_content_frame()
-          window.after(ms=8, func=folding_amination)
+          if is_folding:
+               window.after(ms=8, func=folding_amination)
 
 def extending_menu():
+     global is_folding
+     is_folding = False
      extending_amination()
      toggle_button.configure(image=close_icon)
      toggle_button.configure(command=folding_menu)
 
 def folding_menu():
+     global is_folding
+     is_folding = True
      folding_amination()
      toggle_button.configure(image=toggle_icon)
      toggle_button.configure(command=extending_menu)
@@ -100,6 +106,7 @@ close_icon = customtkinter.CTkImage(
      size=(18, 18)
 )
 
+is_folding = False
 toggle_button = customtkinter.CTkButton(
      menu_frame,
      image=toggle_icon,
