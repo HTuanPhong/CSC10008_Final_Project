@@ -27,7 +27,7 @@ window.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
 window.resizable(False, False)
 
 #-------------------------------------- {{ MENU AREA }} --------------------------------------
-# Function
+#region Expand/Collapse Function
 def resize_content_frame():
      menu_width = menu_frame.cget("width")
      content_width = WINDOW_WIDTH - menu_width
@@ -110,9 +110,9 @@ toggle_button = customtkinter.CTkButton(
      command=extending_menu
 )
 toggle_button.place(x=5, y=10)
+#endregion
 
-
-# Download Button
+#region Download Button
 def indicate_download():
      deactivate()
      download_indicate.configure(fg_color = "#0033FF")
@@ -151,8 +151,8 @@ download_indicate = customtkinter.CTkLabel(
      
 )
 download_indicate.place(x=0, y=100)
-
-# Upload button
+#endregion
+#region Upload button
 def indicate_upload():
      deactivate()
      upload_indicate.configure(fg_color="#0033FF")
@@ -191,8 +191,8 @@ upload_indicate = customtkinter.CTkLabel(
      bg_color="lightblue"
 )
 upload_indicate.place(x=0, y=150)
-
-#Setting button
+#endregion
+#region Setting button
 def indicate_setting():
      deactivate()
      setting_indicate.configure(fg_color="#0033FF")
@@ -231,9 +231,10 @@ setting_indicate = customtkinter.CTkLabel(
      bg_color="lightblue"
 )
 setting_indicate.place(x=0, y=200)
-
+#endregion
 
 #------------------------------------------ {{ CONTENT AREA }} ------------------------------------------
+#region content
 content_frame = customtkinter.CTkFrame(
      window,
      fg_color="white",
@@ -573,8 +574,9 @@ download_button = customtkinter.CTkButton(
      font=("Bold", 20)
 )
 download_button.place(x=40, y=260)
+#endregion
 
-# Setting
+#region Setting
 def change_port_sever(chosent):
      port_label.configure(text=f"Port: {chosent}")
 
@@ -672,4 +674,4 @@ ip_sever = customtkinter.CTkLabel(sever_information_frame, text=f"IP: {set_ip_se
 ip_sever.place(x=145, y=60)
 
 window.mainloop()
-
+#endregion
