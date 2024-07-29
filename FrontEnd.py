@@ -2,6 +2,7 @@ import customtkinter
 import socket
 import time
 from PIL import Image
+import time
 
 # Set mode and default theme
 customtkinter.set_appearance_mode("System")
@@ -28,35 +29,51 @@ window.resizable(False, False)
 
 #-------------------------------------- {{ MENU AREA }} --------------------------------------
 #region Expand/Collapse Function
-def resize_content_frame():
-     menu_width = menu_frame.cget("width")
+ANIMATION_DELAY = 8 #ms
+def update_content_frame(menu_width):
      content_width = WINDOW_WIDTH - menu_width
      content_frame.configure(width=content_width)
      content_frame.place(relwidth=1.0, relheight=1.0, x=menu_width, y=0)
 
+def update_menu_frame(width: int):
+     menu_frame.configure(width = width)
+     download_icon_button.configure(width = width - 2)
+     upload_icon_button.configure(width = width - 2)
+     setting_icon_button.configure(width = width - 2)
+
 def extending_amination():
+     startFrame = time.time()
      current_width = menu_frame.cget("width")
      if current_width < MENU_EXPANDED_WIDTH:
           if current_width < (MENU_EXPANDED_WIDTH - DELTA_WIDTH):
                current_width += DELTA_WIDTH
           else:
                current_width = MENU_EXPANDED_WIDTH
-          menu_frame.configure(width=current_width)
-          resize_content_frame()
+          update_menu_frame(current_width)
+          update_content_frame(current_width)
           if not is_folding:
-               window.after(ms=8, func=extending_amination)
+               currentTime = currentTime = int((time.time() - startFrame) * 1000)
+               window.after(
+                    ms = max(8 - currentTime, 0),
+                    func=extending_amination
+               )
 
 def folding_amination():
+     startFrame = time.time()
      current_width = menu_frame.cget("width")
      if current_width > MENU_COLLAPSED_WIDTH:
           if current_width > (MENU_COLLAPSED_WIDTH + DELTA_WIDTH):
                current_width -= DELTA_WIDTH
           else:
                current_width = MENU_COLLAPSED_WIDTH
-          menu_frame.configure(width=current_width)
-          resize_content_frame()
+          update_menu_frame(current_width)
+          update_content_frame(current_width)
           if is_folding:
-               window.after(ms=8, func=folding_amination)
+               currentTime = int((time.time() - startFrame) * 1000)
+               window.after(
+                    ms = max(8 - currentTime, 0), 
+                    func=folding_amination
+               )
 
 def extending_menu():
      global is_folding
@@ -140,6 +157,7 @@ download_icon_button = customtkinter.CTkButton(
      menu_frame,
      image=download_icon,
      width=165,
+     height=32,
      fg_color="#CCFFFF",
      hover_color="#CCFFFF",
      text=" Download",
@@ -180,6 +198,7 @@ upload_icon_button = customtkinter.CTkButton(
      menu_frame,
      image=upload_icon,
      width=165,
+     height=32,
      fg_color="lightblue",
      hover_color="#CCFFFF",
      text=" Upload",
@@ -220,6 +239,7 @@ setting_icon_button = customtkinter.CTkButton(
      menu_frame,
      image=setting_icon,
      width=165,
+     height=32,
      fg_color="lightblue",
      hover_color="#CCFFFF",
      text=" Setting",
