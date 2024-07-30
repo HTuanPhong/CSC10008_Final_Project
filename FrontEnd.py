@@ -2,7 +2,9 @@ import customtkinter
 import socket
 import time
 from PIL import Image
-import time
+from tkinter import filedialog, Menu
+import os
+from tkinter import messagebox
 
 # Set mode and default theme
 customtkinter.set_appearance_mode("System")
@@ -26,7 +28,7 @@ window = customtkinter.CTk()
 window.title("File Transfer")
 window.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
 window.resizable(False, False)
-
+bold_font = customtkinter.CTkFont(weight="bold", size=14)
 #-------------------------------------- {{ MENU AREA }} --------------------------------------
 #region Expand/Collapse Function
 ANIMATION_DELAY = 8 #ms
@@ -566,7 +568,7 @@ list_file_download.place(x=730, y=0, relheight=1.0)
 list_file_selected_title = customtkinter.CTkLabel(
      list_file_download,
      text="Selected",
-     font=("Bold", 20),
+     font=bold_font,
      text_color="black",
 )
 list_file_selected_title.place(x=0, y=0)
@@ -574,7 +576,7 @@ list_file_selected_title.place(x=0, y=0)
 delete_icon = customtkinter.CTkImage(
      dark_image=Image.open("Image/delete.png"),
      light_image=Image.open("Image/delete.png"),
-     size=(25, 25)
+     size=(22, 22)
 )
 clear_download_list_button = customtkinter.CTkButton(
      list_file_download,
@@ -602,6 +604,255 @@ download_button = customtkinter.CTkButton(
 )
 download_button.place(x=40, y=260)
 #endregion
+
+#region Upload
+WIDTH_COLUMN_FILE_NAME = 180
+WIDTH_COLUMN_FILE_SIZE = 75
+WIDTH_COLUMN_DATE = 110
+WIDTH_COLUMN_FILE_PATH = 420
+WIDTH_COLUMN_STATUS = 100
+
+upload_file_icon = customtkinter.CTkImage(
+     dark_image=Image.open("Image/upload_file.png"), 
+     light_image=Image.open("Image/upload_file.png"), 
+     size=(17, 17)
+)
+
+add_icon = customtkinter.CTkImage(
+     dark_image=Image.open("Image/plus.png"), 
+     light_image=Image.open("Image/plus.png"), 
+     size=(12, 12)
+)
+
+clear_icon_upload_list = customtkinter.CTkImage(
+     dark_image=Image.open("Image/recycle-bin.png"), 
+     light_image=Image.open("Image/recycle-bin.png"), 
+     size=(15, 15)
+)
+
+
+file_dict = {}
+title_frame = customtkinter.CTkFrame(upload_frame, corner_radius=0, width=920, fg_color="#EEEEEE")
+title_frame.place(x=10, y=65)
+
+
+customtkinter.CTkLabel(
+     title_frame, 
+     text="File Name", 
+     width=WIDTH_COLUMN_FILE_NAME,
+     font=bold_font,
+     anchor="w"
+).grid(row=0, column=0, padx=5)
+
+customtkinter.CTkLabel(
+     title_frame, 
+     text="Size", 
+     font=bold_font,
+     width=WIDTH_COLUMN_FILE_SIZE, 
+     anchor="w"
+).grid(row=0, column=1, padx=5)
+
+customtkinter.CTkLabel(
+     title_frame, 
+     text="Last Update", 
+     width=WIDTH_COLUMN_DATE, 
+     font=bold_font,
+     anchor="center"
+).grid(row=0, column=2, padx=5)
+
+customtkinter.CTkLabel(
+     title_frame, 
+     text="Path", 
+     width=WIDTH_COLUMN_FILE_PATH, 
+     font=bold_font,
+     anchor="center",
+     fg_color="#EEEEEE"
+).grid(row=0, column=3, padx=7)
+
+customtkinter.CTkLabel(
+     title_frame, 
+     text="Action", 
+     width=WIDTH_COLUMN_STATUS, 
+     font=bold_font,
+     anchor="center",
+     fg_color="#EEEEEE"
+).grid(row=0, column=4, padx=5)
+
+file_upload_scroll_frame = customtkinter.CTkScrollableFrame(upload_frame, width=920, height=280, corner_radius=0, fg_color="#EEEEEE")
+file_upload_scroll_frame.place(x=10, y=90)
+
+def truncate_text(text, max_width):
+    ellipsis = "..."
+    max_length = max_width // 8
+
+    if len(text) > max_length:
+        return text[:max_length - len(ellipsis)] + ellipsis
+    return text
+
+def remove_file_upload(filename):
+     if filename in file_dict:
+          del file_dict[filename]
+          refresh_file_list()
+
+def clear_list_upload():
+     file_dict.clear()
+     refresh_file_list()
+
+def uploadFile(server_address, client_path, server_path):
+     pass
+
+def refresh_file_list():
+     for widget in file_upload_scroll_frame.winfo_children():
+          widget.destroy()
+        
+     for idx, (filename, info) in enumerate(file_dict.items()):
+          file_name_truncated = truncate_text(filename, WIDTH_COLUMN_FILE_NAME)
+          file_name_label = customtkinter.CTkLabel(
+               file_upload_scroll_frame, 
+               text=file_name_truncated, 
+               width=WIDTH_COLUMN_FILE_NAME, 
+               anchor="w", 
+               font=("", 15),
+               fg_color="#EEEEEE"
+          )
+          file_name_label.grid(row=idx, column=0, sticky="w", padx=5)
+
+
+          size = round(float(info[0] / 1e6), 3)
+          file_truncated = truncate_text(f"{size} MB", WIDTH_COLUMN_FILE_SIZE)
+          size_label = customtkinter.CTkLabel(
+               file_upload_scroll_frame, 
+               text=file_truncated, 
+               width=WIDTH_COLUMN_FILE_SIZE, 
+               anchor="w", 
+               font=("", 15),
+               fg_color="#EEEEEE"
+          )
+          size_label.grid(row=idx, column=1, sticky="w", padx=5)
+          
+
+          date_truncated = truncate_text(info[1], WIDTH_COLUMN_DATE)
+          date_label = customtkinter.CTkLabel(
+               file_upload_scroll_frame, 
+               text=date_truncated, 
+               width=WIDTH_COLUMN_DATE, 
+               anchor="center", 
+               font=("", 15),
+               fg_color="#EEEEEE"
+          )
+          date_label.grid(row=idx, column=2, sticky="w", padx=5)
+          
+          path_truncated = truncate_text(info[2], WIDTH_COLUMN_FILE_PATH)
+          path_label = customtkinter.CTkLabel(
+               file_upload_scroll_frame, 
+               text=path_truncated, 
+               width=WIDTH_COLUMN_FILE_PATH, 
+               anchor="w", 
+               font=("", 15),
+               fg_color="#EEEEEE"
+          )
+          path_label.grid(row=idx, column=3, sticky="w", padx=7)
+        
+          remove_var = customtkinter.StringVar(value="on")
+          remove_file_upload_ckeckbox = customtkinter.CTkCheckBox(
+               file_upload_scroll_frame,
+               text="",
+               variable=remove_var,
+               checkbox_height=17,
+               checkbox_width=17,
+               corner_radius=50,
+               onvalue="on",
+               offvalue="off",
+               hover=True,
+               hover_color="red",
+               fg_color="green",
+               command=lambda name = filename: remove_file_upload(name)
+          )
+          remove_file_upload_ckeckbox.grid(row=idx, column=4, padx=20)
+          
+          upload_current_file = customtkinter.CTkButton(
+               file_upload_scroll_frame,
+               text="",
+               image=upload_file_icon,
+               height=20, 
+               width=20,
+               fg_color="#EEEEEE",
+               hover_color="lightblue",
+               command=lambda path=info[2]: uploadFile("Default", path, "default")
+          )
+          upload_current_file.grid(row=idx, column=4, padx=5)
+     
+     info_upload.configure(text=f"Total: {len(file_dict)} files ({round(calculate_total_size(file_dict) / 1e6, 4)} MB)")
+
+def select_files():
+     file_paths = filedialog.askopenfilenames()
+     # Create dictionary : {"filename": [file size, last update, path]}
+     for file_path in file_paths:
+          filename = os.path.basename(file_path)
+          if filename in file_dict:
+               messagebox.showerror("Error", "File already exists")
+               continue
+          
+          file_size = os.path.getsize(file_path)
+          last_modified_time = os.path.getmtime(file_path)
+          last_modified_date = time.strftime('%Y-%m-%d', time.localtime(last_modified_time))
+          file_dict[filename] = [file_size, last_modified_date, file_path]
+
+     refresh_file_list()
+
+def calculate_total_size(file_dict):
+     total_size = 0
+     for file_info in file_dict.values():
+          size = file_info[0]  
+          total_size += size
+     return total_size
+
+add_file_upload_button = customtkinter.CTkButton(
+     upload_frame, image=add_icon, 
+     text="Add file", 
+     font=("", 14),
+     width=22,
+     fg_color="lightblue", 
+     text_color="black",
+     hover_color="#6699FF",
+     command=select_files
+)
+add_file_upload_button.place(x=770, y = 35)
+
+clear_file_upload_button = customtkinter.CTkButton(
+     upload_frame, 
+     text="Clear",
+     image=clear_icon_upload_list, 
+     font=("", 14),
+     width=22,
+     fg_color="lightblue", 
+     text_color="black",
+     hover_color="#6699FF",
+     command=clear_list_upload
+)
+clear_file_upload_button.place(x=870, y = 35)
+
+bold_font_lv1 = customtkinter.CTkFont(weight="bold", size=21)
+customtkinter.CTkLabel(upload_frame, text="List upload file", font=bold_font_lv1).place(x= 10, y = 35)
+
+upload_all = customtkinter.CTkButton(
+     upload_frame,
+     text="Upload all file",
+     font= customtkinter.CTkFont(weight="bold", size=18)
+
+)
+upload_all.place(x=400, y = 460)
+
+
+info_upload = customtkinter.CTkLabel(
+     upload_frame,
+     text=f"Total: {len(file_dict)} files ({round(calculate_total_size(file_dict) / 1e6, 4)} MB)",
+     font=bold_font
+)
+info_upload.place(x=10, y=370)
+
+#endregion
+
 
 #region Setting
 def change_port_sever(chosent):
