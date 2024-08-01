@@ -4,9 +4,7 @@ from modules.message import *
 import shutil
 from math import ceil
 import threading
-import queue
 import time
-import math
 
 simpleThreadNumber = 8
 MAX_CONNECTIONS = 8
@@ -28,47 +26,48 @@ def set_address(host, port):
 
 connections = []
 queue = []
-queue_cnt = -1
+error_queue = []
 manager_error = 'null'
 manager_status = 'wait'
-for i in range(MAX_CONNECTIONS):
-    connections.append(messenger(HOST, PORT))
+# for i in range(MAX_CONNECTIONS):
+#     connections.append(messenger(HOST, PORT))
     
 def upload(client_paths, sizes, server_folder, callback = print):
     for client_path, size in zip(client_paths, sizes):
-        global queue_cnt, queue
-        #raise exception from class __init__
         process = Upload(client_path, server_folder, size, callback)
         queue.append(process)
-        queue_cnt += 1
 
 def download(server_paths, sizes, client_folder, callback = print):
-    for server_path, size in zip(server_paths, sizes):
-        global queue_cnt, queue
-        #raise exception from class __init__
+    for server_path, size in zip(server_paths, sizes): 
         process = Download(client_folder, server_path, size, callback)
         queue.append(process)
-        queue_cnt += 1
 
 def manager(error_callback = print):
-    global queue_cnt, queue
     while manager_status != 'stop':
         time.sleep(0.25)
-        print(queue)
-        if queue_cnt >= 0:
+        if len(queue) > 0:
             try:
-                connection_cnt = math.ceil(queue[queue_cnt].file_size // DEF_BUF)
-                while len(connections) < MAX_CONNECTIONS and len(connections) < connection_cnt:
-                    connections.append(messenger(HOST, PORT))
+                connection_cnt = ceil(queue[-1].file_size / DEF_BUF)
                 
-                queue[queue_cnt].startProcess(connections)
-                if(queue[queue_cnt].status == 'finish'):
-                    queue.pop(queue_cnt)
-                    queue_cnt -= 1
+                while (len(connections) < MAX_CONNECTIONS) and (len(connections) < connection_cnt):
+                    connections.append(messenger(HOST, PORT))
+                    
+                print('connection cnt:', connection_cnt, queue[-1].file_size, DEF_BUF)
+                queue[-1].startProcess(connections)
+                if(queue[-1].status == 'finish'):
+                    queue.pop(-1)
+
             except Exception as error:
                 error_callback(error)
+                error_queue.append(queue[-1])
+                queue.pop()
         else:
             for i in range(len(connections)-1, -1, -1):
+                connections[i].close()
+                connections.pop(i)
+    
+    print('error queue', error_queue)
+    for i in range(len(connections)-1, -1, -1):
                 connections[i].close()
                 connections.pop(i)
 
@@ -84,7 +83,7 @@ def managerStop():
     global manager_status
     manager_status = 'stop'
 
-def managerPause(num):
+def managerPause(num: int):
     "pause process num th in queue"
     queue[num].pauseProcess()
 
@@ -111,10 +110,10 @@ class Segment():
 
         try:
             while(self.mark_byte < self.length and self.process.status != 'pause'):
-                self.cnt += 1
-                if self.cnt == 100:
-                    print('progress', self.offset, self.progress)
-                    self.cnt = 0
+                # self.cnt += 1
+                # if self.cnt == 100:
+                #     print('progress', self.offset, self.progress)
+                #     self.cnt = 0
                 
                 if isinstance(self.process, Upload):
                     messenger.send_DWRQ(
@@ -134,11 +133,11 @@ class Segment():
                         min(DEF_BUF, self.length - self.mark_byte),
                         self.process.destinate_path
                     )
-
                     self.mark_byte += min(MAX_BUF, self.length - self.mark_byte)
                     self.progress = self.mark_byte / self.length
                     self.process.callback(self.process.server_path, self.process.client_path, self.mark_byte)
         except Exception as error:
+            #dev error here
             print("segment error:", error)
             pass
         finally:
@@ -146,7 +145,7 @@ class Segment():
             self.length -= self.mark_byte
             self.mark_byte = 0
 
-    def start(self, connection: messenger):
+    def _start(self, connection: messenger):
         self.thread = threading.Thread(target= self.startProcess, args=(connection, ))
         self.thread.start()
 #endregion
@@ -169,19 +168,20 @@ class Process():
         
     def __str__(self):
         return f"({self.getProgress()})"
-    def start():
+    def __repr__(self):
+        return f"({self.client_path}, {self.server_path}, {self.getProgress()})"
+    def _start():
         pass
-    def finish():
+    def _finish():
         pass
-    def checkPath(self):
+    def _checkPath(self):
         pass
-    def pauseProcess(self):
-        self.status = 'pause'
 
-    def fragment(self):
+    def _fragment(self):
         connection_ = len(self.connections)
+        print('segment', connection_)
         segment_length = self.file_size // connection_
-
+        
         for i in range(connection_):
             offset = i * segment_length
             length = min(segment_length, self.file_size - offset)
@@ -195,29 +195,34 @@ class Process():
     def startProcess(self, connections):
         try:
             if self.status == 'wait':
-                self.start(connections)
-                self.fragment()
+                self._start(connections)
+                self._fragment()
 
-            print('dubug:', self.status)
-            if self.status != 'processing...':
-                self.status = 'processing...'
-                for segment, connection in zip(self.segments, self.connections):
-                    segment.start(connection)
-
-                for segment in self.segments:
-                    segment.thread.join()
-
-                if(self.status != 'pause' or self.status != 'error'):
-                    self.finish(self.connections[0])
-                    self.status = 'finish'
+                self.continueProcess()
 
             else:
                 raise Exception('already uploading')
                 #for handling with client pressing button multiple time 
         except Exception as error:
-            print('start error:', error)
+            self.callback('start error:', error)
             self.status = 'wait'
             self.error = error
+            raise error
+
+    def continueProcess(self):
+        self.status = 'processing...'
+        for segment, connection in zip(self.segments, self.connections):
+            segment._start(connection)
+
+        for segment in self.segments:
+                    segment.thread.join()
+
+        if(self.status != 'pause' or self.status != 'error'):
+            self._finish(self.connections[0])
+            self.status = 'finish'
+        
+    def pauseProcess(self):
+        self.status = 'pause'
 
     def getProgress(self):
         processed_byte = self.file_size
@@ -235,12 +240,19 @@ class Process():
 
 #endregion
 
-#region download/upload
+#region Upload
 class Upload(Process):
     def __init__(self, client_path, server_path, file_size, callback = print):
         super().__init__(client_path, server_path, file_size, callback)
+        self.destinate_path = None
 
-    def start(self, connections):
+    def __str__(self):
+        return super().__str__()
+
+    def __repr__(self):
+        return f"({self.client_path_path}, {self.destinate_path}, {self.getProgress()})"
+
+    def _start(self, connections):
         try:
             if not os.path.exists(self.client_path):
                 raise FileNotFoundError('cant find file to upload')
@@ -258,18 +270,29 @@ class Upload(Process):
             connections[0].send_WRQ(self.destinate_path, self.file_size)
                
         except Exception as error:
-            print('Process error:', error)
+            self.callback('Process error:', error)
             self.status = 'error'
             self.error = error
+            raise error
 
-    def finish(self, connection):
+    def _finish(self, connection):
         connection.send_FWRQ(self.destinate_path)
+#endregion
 
+#region Download
 class Download(Process):
     def __init__(self, client_path, server_path, file_size, callback = print):
         super().__init__(client_path, server_path, file_size, callback)
+        self.destinate_path = None
 
-    def start(self, connections):
+    def __str__(self):
+        return super().__str__()
+
+    def __repr__(self):
+        return f"({self.server_path}, {self.destinate_path}, {self.getProgress()})"
+    def check(self):
+        pass
+    def _start(self, connections):
         try:
             if(not os.path.exists(self.client_path)):    #path not found, dev error
                 raise FileNotFoundError('path not found')
@@ -280,6 +303,8 @@ class Download(Process):
             file_name = os.path.basename(os.path.normpath(self.server_path))
             self.destinate_path = os.path.join(self.client_path, file_name)
             if os.path.exists(self.destinate_path):   #file already exist on client, user decide
+                # print('file dest:', self.destinate_path)
+                # self.destinate_path = get_unique_filename(self.destinate_path)
                 raise FileExistsError('file already exist')
 
             self.file_size = connections[0].send_RRQ(self.server_path)   #might raise file not exist
@@ -295,10 +320,11 @@ class Download(Process):
             self.connections = connections
 
         except Exception as error:
-            print('start error:', error)
+            self.callback('start error:', error)
             self.status = 'wait'
             self.error = error
+            raise error
 
-    def finish(self, connection):
+    def _finish(self, connection):
         new_file_path = os.path.splitext(self.destinate_path)[0]
-        os.rename(self.destinate_path, get_unique_filename(new_file_path, self.destinate_path))
+        os.rename(self.destinate_path, new_file_path)
