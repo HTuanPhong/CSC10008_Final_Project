@@ -1,373 +1,348 @@
+#TODO: find a way to handle duplicate file -> can easily fix with an app setting
+#Do something with error queue, only happen when file/folder get delete before process or connection error -> might just ignore
+#change progress callback to watch process instead of segment, incase processing multiple file at the same time => can be ignore
+
 import os
 from modules.shared import *
 from modules.message import *
 import shutil
 from math import ceil
 import threading
-import queue
 import time
 
 simpleThreadNumber = 8
+MAX_CONNECTIONS = 8
+DEF_BUF = 2 ** 13   #8kB
+HOST = "localhost"  
+PORT = 8888  
+SETTING = "None"
 
+def set_address(host, port):
+    global HOST, PORT
+    HOST = host
+    PORT = port
+
+def getSetting(overwrite: bool, remember: bool):
+    if(remember):
+        global SETTING 
+        if(overwrite):
+            SETTING = 'overwrite'
+        else:
+            SETTING = 'delete'
+
+
+DEBUG = True
+def debug(*msg):
+    if DEBUG:
+        print('debug:', msg)
+
+BUG = True      #set True if want bug to print out to console
+def bug(*msg):
+    if BUG:
+        print('bug:', msg)
 
 #region Manager
 #connections manager and process manager
-#use static amount of connections for now
-#haven't test yet, also
-class Queue(queue.Queue):
-    def peek(self):
-        with self.mutex:
-            if not self._qsize():
-                raise queue.Empty
-            return self.queue[0]
 
-class ConnectionManager():
-    "Class to manage the hold upload process, also handle connection"
-    def __init__(self, host, port):
-        self.connections = []
-        self.max_connnection = simpleThreadNumber
-        self.queue = Queue(0)
-        self.process = []
-        self.errorQueue = Queue(0)
-        self.status = 'wait'
-        for i in range(self.max_connnection):
-            self.connections.append(messenger(host, port))
-        
-        self.manager = threading.Thread(target=self.manager, daemon=True)
-        self.manager.start()
-
+connections = []
+queue = []
+error_queue = []
+process_queue = []
+manager_error = 'null'
+manager_status = 'wait'
     
-    def processUpload(self, client_path, server_folder):
-        self.queue.put(UploadProcess(client_path, server_folder))
+def upload(client_paths, sizes, server_folder, callback = print):
+    for client_path, size in zip(client_paths, sizes):
+        process = Upload(client_path, server_folder, size, callback)
+        process._validPath()
+        queue.append(process)
 
-    def processDownload(self, server_path, client_folder):
-        self.queue.put(DownloadProcess(server_path, client_folder))
+def download(server_paths, sizes, client_folder, callback = print):
+    for server_path, size in zip(server_paths, sizes): 
+        process = Download(client_folder, server_path, size, callback)
+        process._validPath()
+        queue.append(process)
 
-    #for now, only support upload 1 file at a time
-    #you can call process multiple time though :v
-    def manager(self):
-        while self.status != 'stop':
-            print('manager is running...')
-            time.sleep(1)
-            if not self.queue.empty():
-                self.startProcess()
-        
-    def startProcess(self):
-        try:
-            # print("start process...")
-            # print('item',self.queue)
-            process = self.queue.get()
-            self.process.append(process)
-            thread = threading.Thread(target=process.start, args=(self.connections,))
-            thread.start()
-            # process.start(self.connections)
-        except:
-            self.errorQueue.put(process)
+def manager(error_callback = print):
+    while manager_status != 'stop':
+        time.sleep(0.25)
+        if len(queue) > 0:
+            try:
+                connection_cnt = ceil(queue[-1].file_size / DEF_BUF)
+                
+                while (len(connections) < MAX_CONNECTIONS) and (len(connections) < connection_cnt):
+                    connections.append(messenger(HOST, PORT))
+                    
+                debug('connection cnt:', connection_cnt, queue[-1].file_size, DEF_BUF)
 
-    def stop(self):
-        self.status = 'stop'
+                #TODO: find better way to handle error process
+                queue[-1].startProcess(connections)
+                if(queue[-1].status == 'finish'):
+                    queue.pop(-1)
 
-    def pause(self):
-        self.queue.peek().pauseProcess()
+            except Exception as error:
+                error_callback(error)
+                error_queue.append(queue[-1])
+                queue.pop()
+        else:
+            for i in range(len(connections)-1, -1, -1):
+                connections[i].close()
+                connections.pop(i)
+    
+    debug('error queue', error_queue)
+    for i in range(len(connections)-1, -1, -1):
+                connections[i].close()
+                connections.pop(i)
+
+Manager = None
+
+def managerStart(error_callback):
+    global Manager, manager_status
+    manager_status = 'working'
+    Manager = threading.Thread(target=manager, args=(error_callback,))
+    Manager.start()
+
+def managerStop():
+    global manager_status
+    manager_status = 'stop'
+
+def managerPause(num: int):
+    "pause process num th in queue"
+    queue[num].pauseProcess()
+
 #endregion
 
+#region Segment
+class Segment():
+    def __init__(self, offset, length, process):
+        self.offset = offset
+        self.length = length
+        self.process = process
+        self.thread = None
+        self.mark_byte = 0
+        self.progress = 0
 
-#yet to be done class
-#region upload
-class UploadProcess():
-    """Class to handle download of a single file
+    def __str__(self):
+        return f"({self.offset}, {self.length})"
+
+    def startProcess(self, messenger):
+        if self.length == 0:
+            return
+
+        try:
+            while(self.mark_byte < self.length and self.process.status != 'pause'):\
+                
+                if isinstance(self.process, Upload):
+                    messenger.send_DWRQ(
+                        self.process.destinate_path,
+                        self.offset + self.mark_byte,
+                        min(DEF_BUF, self.length - self.mark_byte),
+                        self.process.client_path
+                    )
+                    self.mark_byte += min(MAX_BUF, self.length - self.mark_byte)
+                    self.progress = self.mark_byte / self.length
+                    self.process.callback(self.process.client_path, self.process.server_path, self.mark_byte)
+
+                else:
+                    messenger.send_DRRQ(
+                        self.process.server_path,
+                        self.offset + self.mark_byte,
+                        min(DEF_BUF, self.length - self.mark_byte),
+                        self.process.destinate_path
+                    )
+                    self.mark_byte += min(MAX_BUF, self.length - self.mark_byte)
+                    self.progress = self.mark_byte / self.length
+                    self.process.callback(self.process.server_path, self.process.client_path, self.mark_byte)
+
+        except Exception as error:
+            bug("segment error:", error)
+            raise error
+
+        finally:
+            self.offset += self.mark_byte
+            self.length -= self.mark_byte
+            self.mark_byte = 0
+
+    def _start(self, connection: messenger):
+        self.thread = threading.Thread(target= self.startProcess, args=(connection, ))
+        self.thread.start()
+#endregion
+#region Process
+class Process():
     """
-    def __init__(self, client_path, server_folder):
-        self.source_path = client_path
-        self.destinate_path = server_folder
-        self.file_size = os.stat(client_path).st_size
+    Class to handle download of a single file
+    """
+    def __init__(self, client_path, server_path, size, callback = print):
+        self.client_path = client_path
+        self.server_path = server_path
+        self.file_size = size
+        self.callback = callback
+        self.overwrite = False
+        
         self.segments = []
         self.connections = []
         self.status = 'wait'
         self.error = 'null'
         
     def __str__(self):
-        return f"({self.source_path}, {self.destinate_path}, {self.getProgress()})"
+        return f"({self.getProgress()})"
+    def __repr__(self):
+        return f"({self.client_path}, {self.server_path}, {self.getProgress()})"
+    def _start():
+        pass
+    def _finish():
+        pass
+    def _validPath(self):   #checking path and raise exception
+        pass
 
-#region segment Class
-    class Segment():
-        "inner class to handle data transfer of 1 segment"  
-        def __init__(self, offset, length, process):
-            self.offset = offset
-            self.length = length
-            self.process = process
-            self.thread = None
-            self.mark_byte = 0
-            self.progress = 0
-            self.cnt = 0
-
-        def __str__(self):
-            return f"({self.offset}, {self.length})"
-
-        def startProcess(self, mes):
-            if self.length == 0:
-                return
-
-            try:
-                while(self.mark_byte < self.length and self.process.status != 'pause'):
-                    self.cnt += 1
-                    if self.cnt == 100:
-                        print('progress', self.offset, self.progress)
-                        self.cnt = 0
-
-                    mes.send_DWRQ(
-                        self.process.destinate_path,
-                        self.offset + self.mark_byte,
-                        min(MAX_BUF, self.length - self.mark_byte),
-                        self.process.source_path
-                    )
-                    self.mark_byte += MAX_BUF
-                    self.progress = self.mark_byte / self.length
-            except Exception as error:
-                print("segment error:", error)
-                pass
-            finally:
-                self.offset += self.mark_byte
-                self.length -= self.mark_byte
-                self.mark_byte = 0
-
-        def start(self, connection: messenger):
-            self.thread = threading.Thread(target= self.startProcess, args=(connection, ))
-            self.thread.start()
-#endregion segment class
+    def _fragment(self):
+        amount = len(self.connections)
+        debug('segment', amount)
+        segment_length = self.file_size // amount
         
-    #simply divide data length into segments
-    def start(self, connections: list):
-        """upload file to server
-        client path should be a file (because we don't have upload folder yet :v)
-        server path should be a folder"""
-        #server_path should already be valid since we get it from the directory request
+        for i in range(amount):
+            offset = i * segment_length
+            length = min(segment_length, self.file_size - offset)
+            self.segments.append(Segment(offset, length, self))
 
-#region path checking
-        try:
-            if not os.path.exists(self.source_path):
-                raise FileNotFoundError('cant find file to upload')
-            
-            if os.path.isdir(self.source_path):
-                raise NotImplementedError('chua cai :v')
-            
-            file_name = os.path.basename(os.path.normpath(self.source_path))
-            self.destinate_path = os.path.join(self.destinate_path, file_name)
-            # print('client path:', self.source_path)
-            # print('server path:', self.destinate_path)
-
-#region fragment data into segment
-            self.status = 'start'
-            self.connections = connections
-
-            connections[0].send_WRQ(self.destinate_path, self.file_size)    #might raise file already exist or out of disk
-            connection_ = len(connections)
-            segment_length = self.file_size // connection_
-
-            for i in range(connection_):
-                offset = i * segment_length
-                length = min(segment_length, self.file_size - offset)
-                self.segments.append(UploadProcess.Segment(offset, length, self))
-    
-            # If the last segment is smaller than segment_length
-            if self.segments:
-                self.segments[-1].length = self.file_size - self.segments[-1].offset
-
-#region start process
-            self.startProcess()
-#region error
-        except Exception as error:
-            print('start error:', error)
-            self.status = 'wait'
-            self.error = error
-#endregion
-    def pauseProcess(self):
-        self.status = 'pause'
+        # If the last segment is smaller than segment_length
+        if self.segments:
+            self.segments[-1].length = self.file_size - self.segments[-1].offset
 
     #need to handle differently went update to dynamic connection
-    def startProcess(self):
+    def startProcess(self, connections):
         try:
-            if self.status != 'uploading...':
-                self.status = 'uploading...'
-                for segment, connection in zip(self.segments, self.connections):
-                    segment.start(connection)
+            self._validPath()
+            self.connections = connections
+            self._start()
+            self._fragment()
+            self.continueProcess()
 
-                for segment in self.segments:
-                    segment.thread.join()
-
-                if(self.status != 'pause' or self.status != 'error'):
-                    self.connections[0].send_FWRQ(self.destinate_path)
-                    self.status = 'finish'
-            else:
-                raise Exception('already uploading')
-                #for handling with client pressing button multiple time
         except Exception as error:
-            print('Process error:', error)
+            self.callback('start error:', error)
+            self.status = 'error'
+            self.error = error
+            raise error
+
+    def continueProcess(self):
+        self.status = 'processing...'
+        for segment, connection in zip(self.segments, self.connections):
+            segment._start(connection)
+
+        for segment in self.segments:
+            segment.thread.join()
+
+        if(self.status != 'pause' or self.status != 'error'):
+            self._finish(self.connections[0])
+            self.status = 'finish'
+        
+    def pauseProcess(self):
+        self.status = 'pause'
 
     def getProgress(self):
         processed_byte = self.file_size
         for segment in self.segments:
             processed_byte -= segment.length
-
+        
         return processed_byte / self.file_size
 
     def getSegmentProgress(self):
         segmentsProgress = []
         for segment in self.segments:
-            segmentsProgress.append(segment)
+            segmentsProgress.append((segment.offset, segment.progress))
 
         return segmentsProgress
 
-#region download
-class DownloadProcess():
-#copy straight from upload, yet to be fix
-    """Class to handle download of a single file
-    """
-    def __init__(self, server_path, client_folder):
-        self.source_path = server_path
-        self.folder_path = client_folder
+#endregion
+
+#region Upload
+class Upload(Process):
+    def __init__(self, client_path, server_path, file_size, callback = print):
+        super().__init__(client_path, server_path, file_size, callback)
         self.destinate_path = None
-        self.file_size = None
-        self.segments = [] 
-        self.connections = []
-        self.status = 'wait'
-        self.error = 'null'
 
-#region segment Class
-    class Segment():
-        "inner class to handle data transfer of 1 segment"  
-        def __init__(self, offset, length, process):
-            self.offset = offset
-            self.length = length
-            self.process = process
-            self.progress = process
-            self.thread = None
-            self.mark_byte = 0
-            self.progress = 0
+    def __str__(self):
+        return super().__str__()
 
-        def __str__(self):
-            return f"({self.offset}, {self.length})"
+    def __repr__(self):
+        return f"({self.client_path_path}, {self.destinate_path}, {self.getProgress()})"
 
-        def startProcess(self, mes):
-            if self.length == 0:
-                return
-
-            try:
-                while(self.mark_byte < self.length and self.process.status != 'pause'):
-                    # print('debug:', self.process.destinate_path)
-                    mes.send_DRRQ(
-                        self.process.source_path,
-                        self.offset,
-                        min(MAX_BUF, self.length - self.mark_byte),
-                        self.process.destinate_path
-                    )
-                    self.mark_byte += MAX_BUF
-                    self.progress = self.mark_byte / self.length
-            except Exception as error:
-                print("segment error:", error)
-                pass
-            finally:
-                self.offset += self.mark_byte
-                self.length -= self.mark_byte
-                self.mark_byte = 0
-
-        def start(self, connection: messenger):
-            self.thread = threading.Thread(target= self.startProcess, args=(connection, ))
-            self.thread.start()
-#endregion segment class
-        
-    #simply divide data length into segments
-    def start(self, connections: list):
-        """download file from server
-        server path should be a file (can't download folder for now...)
-        client path should be a folder
-        """
-
-#region path checking
-        try:
-            if(not os.path.exists(self.folder_path)):    #path not found, dev error
-                raise FileNotFoundError('path not found')
-            if not os.path.isdir(self.folder_path):
-                raise OSError('not folder path')
+    def _validPath(self):
+        if not os.path.exists(self.client_path):
+            raise FileNotFoundError('cant find file to upload')
             
-            #this might not work on Linux
-            file_name = os.path.basename(os.path.normpath(self.source_path))
-            self.destinate_path = os.path.join(self.folder_path, file_name)
-            if os.path.exists(self.destinate_path):   #file already exist on client, user decide
-                raise FileExistsError('file already exist')
+        if os.path.isdir(self.client_path):
+            raise NotImplementedError('Function don\'t support')
+        
+        file_name = os.path.basename(os.path.normpath(self.client_path))
+        self.destinate_path = os.path.join(self.server_path, file_name)
 
-            self.file_size = connections[0].send_RRQ(self.source_path)   #might raise file not exist
-            if shutil.disk_usage(self.folder_path)[2] < self.file_size:
-                raise OSError('client diskspace full')
+        # if SETTING == "None":
+        #     try:
+        #         send_RRQ(self.client_path, self.destinate_path)
+        #     except:
+        #         pass
 
-            self.destinate_path = self.destinate_path + '.downloading'
+    def _start(self):
+        try:
+            self.status = 'start'
+            self.connections[0].send_WRQ(self.destinate_path, self.file_size)
+               
+        except Exception as error:
+            self.status = 'error'
+            bug(error)
+            self.error = error
+            raise error
 
-#region fragment data into segment
+    def _finish(self, connection):
+        connection.send_FWRQ(self.destinate_path)
+#endregion
+
+#region Download
+class Download(Process):
+    def __init__(self, client_path, server_path, file_size, callback = print):
+        super().__init__(client_path, server_path, file_size, callback)
+        self.destinate_path = None
+
+    def __str__(self):
+        return super().__str__()
+
+    def __repr__(self):
+        return f"({self.server_path}, {self.destinate_path}, {self.getProgress()})"
+    def _validPath(self):
+        if(not os.path.exists(self.client_path)):    #path not found, dev error
+            raise FileNotFoundError('path not found')
+
+        if not os.path.isdir(self.client_path):
+            raise OSError('not folder path')
+        
+        file_name = os.path.basename(os.path.normpath(self.server_path))
+        self.destinate_path = get_unique_filename(os.path.join(self.client_path, file_name))
+
+
+        # if os.path.exists(self.destinate_path):   #file already exist on client, user decide
+        #     raise FileExistsError('file already exist')
+
+        if shutil.disk_usage(self.client_path)[2] < self.file_size:
+            raise OSError('client diskspace full')
+
+        self.destinate_path = self.destinate_path + '.downloading'
+
+    def _start(self):
+        try:
+            with open(self.destinate_path, "wb") as f:
+                f.seek(self.file_size - 1)
+                f.write(b"\0")
+
             self.status = 'start'
             self.connections = connections
 
-            connection_ = len(connections)
-            segment_length = self.file_size // connection_
-
-            for i in range(connection_):
-                offset = i * segment_length
-                length = min(segment_length, self.file_size - offset)
-                self.segments.append(DownloadProcess.Segment(offset, length, self))
-    
-            # If the last segment is smaller than segment_length
-            if self.segments:
-                self.segments[-1].length = self.file_size - self.segments[-1].offset
-
-#region start process
-            self.startProcess()
-#region error
-        # except:
-        #     pass
         except Exception as error:
-            print('start error:', error)
-            self.status = 'wait'
+            self.callback('Download process error:', error)
+            self.status = 'error'
             self.error = error
-#endregion
-    def pauseProcess(self):
-        self.status = 'pause'
+            raise error
 
-    #need to handle differently went update to dynamic connection
-    def startProcess(self):
-        try:
-            if self.status == 'start':
-                with open(self.destinate_path, "wb") as f:
-                    f.seek(self.file_size - 1)
-                    f.write(b"\0")
-
-            if self.status != 'downloading...':
-                self.status = 'downloading...'
-                for segment, connection in zip(self.segments, self.connections):
-                    segment.start(connection)
-
-                for segment in self.segments:
-                    segment.thread.join()
-
-                if(self.status != 'pause' or self.status != 'error'):
-                    new_file_path = os.path.splitext(self.destinate_path)[0]
-                    os.rename(self.destinate_path, get_unique_filename(new_file_path, self.folder_path))
-                    self.status = 'finish'
-            else:
-                raise Exception('already downloading...')
-                #for handling with client pressing button multiple time
-        except Exception as error:
-            print('Process error:', error)
-
-    def getProgress(self):
-        processed_byte = self.file_size
-        for segment in self.segments:
-            processed_byte -= segment.length
-
-        return processed_byte / self.file_size
-
-    def getSegmentProgress(self):
-        segmentsProgress = []
-        for segment in self.segments:
-            segmentsProgress.append(segment)
-
-        return segmentsProgress
-#endregion download
+    def _finish(self, connection):
+        new_file_path = os.path.splitext(self.destinate_path)[0]
+        os.rename(self.destinate_path, new_file_path)
