@@ -1,11 +1,37 @@
 import customtkinter
+import tkinter
 import socket
 import time
-from PIL import Image
+from PIL import Image, ImageTk
 from tkinter import filedialog, Menu
 import os
-from tkinter import messagebox
+from tkinter import messagebox, ttk
+import threading
+from threading import Thread
+from modules.shared import *
+from modules.message import messenger, messengerError
+import modules.message as msg
 
+
+# ==== Function in client.py ============================================================================================
+def connect():
+     pass
+
+def disconnect():
+     pass
+
+def delete():
+     pass
+
+def folder():
+     pass
+
+def download():
+     pass
+
+def upload():
+     pass
+#========================================================================================================================
 # Set mode and default theme
 customtkinter.set_appearance_mode("System")
 customtkinter.set_default_color_theme("blue")
@@ -606,252 +632,425 @@ download_button.place(x=40, y=260)
 #endregion
 
 #region Upload
-WIDTH_COLUMN_FILE_NAME = 180
-WIDTH_COLUMN_FILE_SIZE = 75
-WIDTH_COLUMN_DATE = 110
-WIDTH_COLUMN_FILE_PATH = 420
-WIDTH_COLUMN_STATUS = 100
-
-upload_file_icon = customtkinter.CTkImage(
-     dark_image=Image.open("Image/upload_file.png"), 
-     light_image=Image.open("Image/upload_file.png"), 
-     size=(17, 17)
-)
-
-add_icon = customtkinter.CTkImage(
-     dark_image=Image.open("Image/plus.png"), 
-     light_image=Image.open("Image/plus.png"), 
-     size=(12, 12)
-)
-
-clear_icon_upload_list = customtkinter.CTkImage(
-     dark_image=Image.open("Image/recycle-bin.png"), 
-     light_image=Image.open("Image/recycle-bin.png"), 
-     size=(15, 15)
-)
+HOST = None
+PORT = None
+disconnect_event = threading.Event()
+directory_lock = threading.Lock()
+server_directory = {}
+flatten_server_directory = {}
 
 
-file_dict = {}
-title_frame = customtkinter.CTkFrame(upload_frame, corner_radius=0, width=920, fg_color="#EEEEEE")
-title_frame.place(x=10, y=65)
+def download():
+     if not treeview.selection():
+          return
+     download_dir = customtkinter.filedialog.askdirectory()
+     if not download_dir:
+          return
+     for path in treeview.selection():
+          print(path)
 
 
-customtkinter.CTkLabel(
-     title_frame, 
-     text="File Name", 
-     width=WIDTH_COLUMN_FILE_NAME,
-     font=bold_font,
-     anchor="w"
-).grid(row=0, column=0, padx=5)
-
-customtkinter.CTkLabel(
-     title_frame, 
-     text="Size", 
-     font=bold_font,
-     width=WIDTH_COLUMN_FILE_SIZE, 
-     anchor="w"
-).grid(row=0, column=1, padx=5)
-
-customtkinter.CTkLabel(
-     title_frame, 
-     text="Last Update", 
-     width=WIDTH_COLUMN_DATE, 
-     font=bold_font,
-     anchor="center"
-).grid(row=0, column=2, padx=5)
-
-customtkinter.CTkLabel(
-     title_frame, 
-     text="Path", 
-     width=WIDTH_COLUMN_FILE_PATH, 
-     font=bold_font,
-     anchor="center",
-     fg_color="#EEEEEE"
-).grid(row=0, column=3, padx=7)
-
-customtkinter.CTkLabel(
-     title_frame, 
-     text="Action", 
-     width=WIDTH_COLUMN_STATUS, 
-     font=bold_font,
-     anchor="center",
-     fg_color="#EEEEEE"
-).grid(row=0, column=4, padx=5)
-
-file_upload_scroll_frame = customtkinter.CTkScrollableFrame(upload_frame, width=920, height=280, corner_radius=0, fg_color="#EEEEEE")
-file_upload_scroll_frame.place(x=10, y=90)
-
-def truncate_text(text, max_width):
-    ellipsis = "..."
-    max_length = max_width // 8
-
-    if len(text) > max_length:
-        return text[:max_length - len(ellipsis)] + ellipsis
-    return text
-
-def remove_file_upload(filename):
-     if filename in file_dict:
-          del file_dict[filename]
-          refresh_file_list()
-
-def clear_list_upload():
-     file_dict.clear()
-     refresh_file_list()
-
-def uploadFile(server_address, client_path, server_path):
-     pass
-
-def refresh_file_list():
-     for widget in file_upload_scroll_frame.winfo_children():
-          widget.destroy()
-        
-     for idx, (filename, info) in enumerate(file_dict.items()):
-          file_name_truncated = truncate_text(filename, WIDTH_COLUMN_FILE_NAME)
-          file_name_label = customtkinter.CTkLabel(
-               file_upload_scroll_frame, 
-               text=file_name_truncated, 
-               width=WIDTH_COLUMN_FILE_NAME, 
-               anchor="w", 
-               font=("", 15),
-               fg_color="#EEEEEE"
-          )
-          file_name_label.grid(row=idx, column=0, sticky="w", padx=5)
+def upload():
+     if not treeview.selection():
+          return
+     file_list = customtkinter.filedialog.askopenfilenames()
+     if not file_list:
+          return
+     for path in file_list:
+          print(path)
 
 
-          size = round(float(info[0] / 1e6), 3)
-          file_truncated = truncate_text(f"{size} MB", WIDTH_COLUMN_FILE_SIZE)
-          size_label = customtkinter.CTkLabel(
-               file_upload_scroll_frame, 
-               text=file_truncated, 
-               width=WIDTH_COLUMN_FILE_SIZE, 
-               anchor="w", 
-               font=("", 15),
-               fg_color="#EEEEEE"
-          )
-          size_label.grid(row=idx, column=1, sticky="w", padx=5)
-          
+def flatten_directory():
+     flat_dict = {}
 
-          date_truncated = truncate_text(info[1], WIDTH_COLUMN_DATE)
-          date_label = customtkinter.CTkLabel(
-               file_upload_scroll_frame, 
-               text=date_truncated, 
-               width=WIDTH_COLUMN_DATE, 
-               anchor="center", 
-               font=("", 15),
-               fg_color="#EEEEEE"
-          )
-          date_label.grid(row=idx, column=2, sticky="w", padx=5)
-          
-          path_truncated = truncate_text(info[2], WIDTH_COLUMN_FILE_PATH)
-          path_label = customtkinter.CTkLabel(
-               file_upload_scroll_frame, 
-               text=path_truncated, 
-               width=WIDTH_COLUMN_FILE_PATH, 
-               anchor="w", 
-               font=("", 15),
-               fg_color="#EEEEEE"
-          )
-          path_label.grid(row=idx, column=3, sticky="w", padx=7)
-        
-          remove_var = customtkinter.StringVar(value="on")
-          remove_file_upload_ckeckbox = customtkinter.CTkCheckBox(
-               file_upload_scroll_frame,
-               text="",
-               variable=remove_var,
-               checkbox_height=17,
-               checkbox_width=17,
-               corner_radius=50,
-               onvalue="on",
-               offvalue="off",
-               hover=True,
-               hover_color="red",
-               fg_color="green",
-               command=lambda name = filename: remove_file_upload(name)
-          )
-          remove_file_upload_ckeckbox.grid(row=idx, column=4, padx=20)
-          
-          upload_current_file = customtkinter.CTkButton(
-               file_upload_scroll_frame,
-               text="",
-               image=upload_file_icon,
-               height=20, 
-               width=20,
-               fg_color="#EEEEEE",
-               hover_color="lightblue",
-               command=lambda path=info[2]: uploadFile("Default", path, "default")
-          )
-          upload_current_file.grid(row=idx, column=4, padx=5)
+     def _flatten(item):
+          flat_dict[item["path"]] = item
+          if item["type"] == "folder":
+               for child in item.get("children", []):
+                    _flatten(child)
+
+     _flatten(server_directory)
+     return flat_dict
+
+
+def monitor_directory(msgr):
+     try:
+          msgr.sub_DTRQ()
+          global server_directory, flatten_server_directory
+          while not disconnect_event.is_set():
+               data = msgr.recv_DTRQ()
+               with directory_lock:
+                    server_directory = data
+                    flatten_server_directory = flatten_directory()
+                    update_directory()
+     except (OSError, msg.messengerError) as e:
+          if not disconnect_event.is_set():
+               customtkinter.messagebox.showerror("Error", str(e))
+          disconnect()
+
+
+def format_bytes(size):
+     # 2**10 = 1024
+     power = 2**10
+     n = 0
+     units = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]
+     while size >= power and n < len(units) - 1:
+          size /= power
+          n += 1
+     formatted_size = f"{size:.2f}".rstrip("0").rstrip(".")
+     return f"{formatted_size} {units[n]}"
+
+
+def update_directory(query=""):
+     def process_directory(
+          item,
+          query="",
+          parent="",
+     ):
+          if item["type"] == "folder":
+               if not treeview.exists(item["path"]):
+                    treeview.insert(
+                         parent,
+                         0,
+                         item["path"],
+                         text=item["name"],
+                         image=folder_image,
+                    )
+                    
+               else:
+                    children = treeview.get_children(item["path"])
+                    for child in children:
+                         if child not in flatten_server_directory or query not in child:
+                              treeview.delete(child)
+               for child in item.get("children", []):
+                    process_directory(child, query, item["path"])
+          elif item["type"] == "file":
+               icon_file = find_icon_file(item["name"])                              
+               if query in item["name"] and not treeview.exists(item["path"]):
+                    treeview.insert(
+                         parent,
+                         0,
+                         item["path"],
+                         text=item["name"],
+                         image=icon_file,
+                         values=(
+                         time.strftime(
+                              "%Y-%m-%d %H:%M:%S", time.localtime(item["mtime"])
+                         ),
+                         format_bytes(item["size"]),
+                         ),
+                    )
+
+     process_directory(server_directory, query.lower())
+
+
+def validate_input():
+     try:
+          port = int(set_port_combobox.get())
+     except ValueError:
+          customtkinter.messagebox.showerror("Error", "Please enter port number")
+          return False
+     if port < 0 or port > 65535:
+          customtkinter.messagebox.showerror("Error", "Port must be between 0 and 65535")
+          return False
+     return True
+
+
+def connect():
+     if not validate_input():
+          return
+     global HOST, PORT
+     HOST = set_ip_sever_combobox.get()
+     PORT = int(set_port_combobox.get())
+     try:
+          dir_msg = messenger(HOST, PORT)
+     except (OSError, msg.messengerError) as e:
+          customtkinter.messagebox.showerror("Error", str(e))
+          return
+     disconnect_event.clear()
+     directory_thread = Thread(target=monitor_directory, args=(dir_msg,), daemon=True)
+     directory_thread.start()
+
+     connect_button.configure(state="disabled")
+     upload_button.configure(state="normal")
+     download_button.configure(state="normal")
+     folder_button.configure(state="normal")
+     delete_button.configure(state="normal")
+     disconnect_button.configure(state="normal")
+
+
+
+def disconnect():
+     if directory_lock.locked():
+          return
+     disconnect_event.set()
+     msg.disconnect_all()
+     treeview.delete(*treeview.get_children())
+     connect_button.configure(state="normal")
+     upload_button.configure(state="disabled")
+     download_button.configure(state="disabled")
+     folder_button.configure(state="disabled")
+     delete_button.configure(state="disabled")
+     disconnect_button.configure(state="disabled")
+
+
+
+def delete():
+     if not treeview.selection():
+          return
+     try:
+          mes = messenger(HOST, PORT)
+          for path in treeview.selection():
+               mes.send_DRQ(path)
+     except (OSError, msg.messengerError) as e:
+          customtkinter.messagebox.showerror("Error", str(e))
+     finally:
+          mes.close()
+
+
+def folder():
+     if not treeview.selection():
+          return
+     try:
+          mes = messenger(HOST, PORT)
+          last_path = treeview.selection()[-1]
+          name = tkinter.simpledialog.askstring("Input", "Please enter folder name:")
+          if not name:
+               return
+          if flatten_server_directory[last_path]["type"] == "folder":
+               mes.send_FRQ(os.path.join(last_path, name))
+          else:
+               mes.send_FRQ(os.path.join(os.path.dirname(last_path), name))
+     except (OSError, msg.messengerError) as e:
+          customtkinter.messagebox.showerror("Error", str(e))
+     finally:
+          mes.close()
+
+
+def popup_menu(event):
+     selected_item = treeview.identify_row(event.y)
+     if selected_item not in treeview.selection():
+          treeview.selection_set(selected_item)
+
+     popup.tk_popup(event.x_root, event.y_root)
+
+
+def search_dir(*args):
+     if directory_lock.locked():
+          return
+     with directory_lock:
+          update_directory(search_var.get())
+
+
+
+picture_extension = ["jpg", "png", "svg", "gif", "raw"]
+code_extension = ["cpp", "py", "css", "html", "js"]
+file_extension = {
+     "PDF": ["pdf"],
+     "Text": ["txt"],
+     "Picture": ["jpg", "png", "svg", "gif", "raw"],
+     "Code": ["cpp", "py", "css", "html", "js", "cs", "c", "json"]
+}
+def find_icon_file(filename):
+     dot_index = filename.rfind('.')
      
-     info_upload.configure(text=f"Total: {len(file_dict)} files ({round(calculate_total_size(file_dict) / 1e6, 4)} MB)")
+     if dot_index == -1:
+          return indefinite_icon
 
-def select_files():
-     file_paths = filedialog.askopenfilenames()
-     # Create dictionary : {"filename": [file size, last update, path]}
-     for file_path in file_paths:
-          filename = os.path.basename(file_path)
-          if filename in file_dict:
-               messagebox.showerror("Error", "File already exists")
-               continue
-          
-          file_size = os.path.getsize(file_path)
-          last_modified_time = os.path.getmtime(file_path)
-          last_modified_date = time.strftime('%Y-%m-%d', time.localtime(last_modified_time))
-          file_dict[filename] = [file_size, last_modified_date, file_path]
+     extension = filename[dot_index + 1:].lower()
+     for key, extensions in file_extension.items():
+          if extension in extensions:
+               if key == "PDF":
+                    return pdf_image
+               elif key == "Text":
+                    return txt_image
+               elif key == "Picture":
+                    return pictureFile_image
+               elif key == "Code":
+                    return coding_icon
+     
+     return indefinite_icon
 
-     refresh_file_list()
+explorer_objects = {}
 
-def calculate_total_size(file_dict):
-     total_size = 0
-     for file_info in file_dict.values():
-          size = file_info[0]  
-          total_size += size
-     return total_size
+# Icon - Image
+folder_image = Image.open("Image/folder.png")  
+folder_image = ImageTk.PhotoImage(folder_image.resize((22, 22), Image.LANCZOS))
 
-add_file_upload_button = customtkinter.CTkButton(
-     upload_frame, image=add_icon, 
-     text="Add file", 
-     font=("", 14),
-     width=22,
-     fg_color="lightblue", 
-     text_color="black",
-     hover_color="#6699FF",
-     command=select_files
+pdf_image = Image.open("Image/pdfOnTree.png")  
+pdf_image = ImageTk.PhotoImage(pdf_image.resize((20, 20), Image.LANCZOS))
+
+txt_image = Image.open("Image/txtFile.png")  
+txt_image = ImageTk.PhotoImage(txt_image.resize((16, 16), Image.LANCZOS))
+
+pictureFile_image = Image.open("Image/picture.png")  
+pictureFile_image = ImageTk.PhotoImage(pictureFile_image.resize((20, 20), Image.LANCZOS))
+
+recycle_bin_icon = Image.open("Image/recycle-bin.png")  
+recycle_bin_icon = ImageTk.PhotoImage(recycle_bin_icon.resize((22, 22), Image.LANCZOS))
+
+new_folder_icon = Image.open("Image/new-folder.png")  
+new_folder_icon = ImageTk.PhotoImage(new_folder_icon.resize((24, 24), Image.LANCZOS))
+
+download_file_icon = Image.open("Image/download.png")  
+download_file_icon = ImageTk.PhotoImage(download_file_icon.resize((24, 24), Image.LANCZOS))
+
+upload_file_icon = Image.open("Image/upload_file.png")  
+upload_file_icon = ImageTk.PhotoImage(upload_file_icon.resize((24, 24), Image.LANCZOS))
+
+coding_icon = Image.open("Image/coding.png")  
+coding_icon = ImageTk.PhotoImage(coding_icon.resize((24, 24), Image.LANCZOS))
+
+indefinite_icon = Image.open("Image/new-document.png")  
+indefinite_icon = ImageTk.PhotoImage(indefinite_icon.resize((24, 24), Image.LANCZOS))
+# 
+style = ttk.Style(upload_frame)
+
+# Frame
+main_frame = customtkinter.CTkFrame(upload_frame, fg_color="white")
+tool_frame = customtkinter.CTkFrame(main_frame, fg_color="white", height=75)
+# tool_frame.grid(row=0, column=0, padx=0, pady=0)
+tool_frame.place(x=1, y=0)
+dir_frame = customtkinter.CTkFrame(main_frame, width=1000, height=600, fg_color="white")
+dir_frame.place(x=1, y=75)
+
+# Popup
+popup = Menu(upload_frame, tearoff=0)
+popup.add_command(label="Delete", command=delete)
+popup.add_command(label="Make folder", command=folder)
+popup.add_command(label="Download", command=download)
+popup.add_command(label="Upload", command=upload)
+
+
+
+# host_label = ttk.Label(connection_frame, text="IPv4 host:")
+# host_entry = ttk.Entry(connection_frame, width=26, state="normal")
+# host_entry.insert(customtkinter.END, "127.0.0.1")
+# port_label = ttk.Label(connection_frame, text="TCP port:")
+# port_entry = ttk.Entry(connection_frame, width=13, state="normal")
+# port_entry.insert(customtkinter.END, str(DEFAULT_SERVER_PORT))
+# connect_button = ttk.Button(connection_frame, text="Connect", command=connect)
+# disconnect_button = ttk.Button(
+#     connection_frame, text="Disconnect", state="disabled", command=disconnect
+# )
+# operation_frame = ttk.Frame(tool_frame)
+
+customtkinter.CTkLabel(tool_frame, text="Sever's Directory", font=customtkinter.CTkFont(weight="bold", size=18)).place(x=3, y=3)
+delete_button = customtkinter.CTkButton(
+    tool_frame, text="", 
+    state="disabled", 
+    image=recycle_bin_icon,
+    fg_color="white",
+    font=("", 25),
+    width=25,
+    command=delete
 )
-add_file_upload_button.place(x=770, y = 35)
+delete_button.place(x=230, y=42)
 
-clear_file_upload_button = customtkinter.CTkButton(
-     upload_frame, 
-     text="Clear",
-     image=clear_icon_upload_list, 
-     font=("", 14),
-     width=22,
-     fg_color="lightblue", 
-     text_color="black",
-     hover_color="#6699FF",
-     command=clear_list_upload
+folder_button = customtkinter.CTkButton(
+    tool_frame, 
+    text="New folder", 
+    image=new_folder_icon,
+    fg_color="white",
+    text_color="black",
+    state="disabled", 
+    width=25,
+    command=folder
 )
-clear_file_upload_button.place(x=870, y = 35)
+folder_button.place(x=20, y=42)
 
-bold_font_lv1 = customtkinter.CTkFont(weight="bold", size=21)
-customtkinter.CTkLabel(upload_frame, text="List upload file", font=bold_font_lv1).place(x= 10, y = 35)
-
-upload_all = customtkinter.CTkButton(
-     upload_frame,
-     text="Upload all file",
-     font= customtkinter.CTkFont(weight="bold", size=18)
-
+download_button = customtkinter.CTkButton(
+    tool_frame, 
+    text="", 
+    width=25,
+    state="disabled", 
+    fg_color="white",
+    image=download_file_icon,
+    command=download
 )
-upload_all.place(x=400, y = 460)
+download_button.place(x=130, y=42)
 
-
-info_upload = customtkinter.CTkLabel(
-     upload_frame,
-     text=f"Total: {len(file_dict)} files ({round(calculate_total_size(file_dict) / 1e6, 4)} MB)",
-     font=bold_font
+upload_button = customtkinter.CTkButton(
+    tool_frame, 
+    text="", 
+    fg_color="white",
+    image=upload_file_icon,
+    width=25,
+    state="disabled", 
+    command=upload
 )
-info_upload.place(x=10, y=370)
+upload_button.place(x=180, y=42)
+# search_frame = customtkinter.CTkFrame(tool_frame, fg_color="white")
+search_var = customtkinter.StringVar()
+search_var.trace("w", search_dir)
+search_entry = customtkinter.CTkEntry(
+     tool_frame,
+     placeholder_text="Search file",
+     textvariable=search_var,
+     width=300,
+     height=25,
+     corner_radius=15,
+     font=("", 14)
+)
+search_entry.place(x=640, y=42)
 
-#endregion
+
+style = ttk.Style()
+style.configure("Treeview", font=("", 12), rowheight=29)
+style.configure("Treeview.Heading", font=customtkinter.CTkFont(weight="bold", size=11))
+style.map(
+     "Treeview", 
+          background=[('selected', '#99FFFF')],
+          foreground=[('selected', 'black')],
+     )
+
+
+treeview = ttk.Treeview(dir_frame, style="Treeview", height=21)
+treeview["columns"] = ("mtime", "size")
+
+treeview.column("#0", width=670, anchor="w")  
+treeview.column("mtime", width=300, anchor="w")  
+treeview.column("size", width=200, anchor="w")
+
+treeview.heading("#0", text="Name", anchor="w")
+treeview.heading("mtime", text="Date modified", anchor="w")
+treeview.heading("size", text="Size", anchor="w")
+treeview.bind("<Button-3>", popup_menu)
+vsb = ttk.Scrollbar(dir_frame, orient="vertical", command=treeview.yview)
+treeview.configure(yscrollcommand=vsb.set)
+
+
+main_frame.grid(row=0, column=0, sticky="nwes")
+tool_frame.grid(row=0, column=0, stick="nwes")
+
+# search_frame.grid(row=1, column=1, sticky="w")
+
+# search_entry.grid(row=0, column=1, padx=4, pady=4, sticky="ew")
+# host_label.grid(row=0, column=0, padx=4, pady=4, sticky="w")
+# host_entry.grid(row=0, column=1, padx=4, pady=4, sticky="w")
+# port_label.grid(row=0, column=2, padx=4, pady=4, sticky="w")
+# port_entry.grid(row=0, column=3, padx=4, pady=4, sticky="w")
+# connect_button.grid(row=0, column=4, padx=4, pady=4, sticky="w")
+# disconnect_button.grid(row=0, column=5, padx=4, pady=4, sticky="w")
+# operation_frame.grid(row=1, column=0, sticky="w")
+# delete_button.grid(row=0, column=0, padx=4, pady=4, sticky="w")
+# folder_button.grid(row=0, column=1, padx=4, pady=4, sticky="w")
+# download_button.grid(row=0, column=2, padx=4, pady=4, sticky="w")
+# upload_button.grid(row=0, column=3, padx=4, pady=4, sticky="w")
+# dir_frame.grid(row=1, column=0, sticky="w")
+
+treeview.grid(row=0, column=0, sticky="nsew")
+vsb.grid(row=0, column=1, sticky="ns")
+
+upload_frame.grid_columnconfigure(0, weight=1)
+upload_frame.grid_rowconfigure(0, weight=1)
+main_frame.grid_columnconfigure(0, weight=1)
+main_frame.grid_rowconfigure(1, weight=1)
+# search_frame.grid_columnconfigure(1, weight=1)
+tool_frame.grid_columnconfigure(1, weight=1)
+dir_frame.grid_rowconfigure(0, weight=1)
+dir_frame.grid_columnconfigure(0, weight=1)
+
 
 
 #region Setting
@@ -883,7 +1082,7 @@ sever_information_frame.place(x=470, y=60)
 text_sever_info = customtkinter.CTkLabel(setting_frame, text="Sever Info", font=("Bold", 25))
 text_sever_info.place(x=470, y=40)
 
-port_list = ["1234", "8888"]
+port_list = ["8888"]
 set_port_combobox = customtkinter.CTkComboBox(
      setting_frame,
      width=200,
@@ -895,12 +1094,12 @@ set_port_combobox = customtkinter.CTkComboBox(
      dropdown_hover_color="#CCFFFF",
      command=change_port_sever
 )
-set_port_combobox.place(x=50, y=350)
+set_port_combobox.place(x=470, y=430)
 
-text_set_port = customtkinter.CTkLabel(setting_frame, text="Set Port", font=("Bold", 25))
-text_set_port.place(x=50, y=300)
+text_set_port = customtkinter.CTkLabel(setting_frame, text="Set Port", font=customtkinter.CTkFont(weight="bold", size=18))
+text_set_port.place(x=470, y=402)
 
-ip_sever_list = ["1.2.3.4", "5.4.3.2", "123.123.123.123"]
+ip_sever_list = ["127.0.0.1"]
 set_ip_sever_combobox = customtkinter.CTkComboBox(
      setting_frame,
      width=200,
@@ -914,8 +1113,26 @@ set_ip_sever_combobox = customtkinter.CTkComboBox(
 )
 set_ip_sever_combobox.place(x=470, y=350)
 
-text_set_ip_sever = customtkinter.CTkLabel(setting_frame, text="Set IP Sever", font=("Bold", 25))
-text_set_ip_sever.place(x=470, y=300)
+text_set_ip_sever = customtkinter.CTkLabel(setting_frame, text="Set IP Sever", font=customtkinter.CTkFont(weight="bold", size=18))
+text_set_ip_sever.place(x=470, y=322)
+
+
+connect_button = customtkinter.CTkButton(
+     setting_frame,
+     text="Connect",
+     width=130,
+     font=customtkinter.CTkFont(weight="bold", size=18),
+     command=connect,
+)
+connect_button.place(x=50, y=350)
+disconnect_button = customtkinter.CTkButton(
+     setting_frame,
+     text="Disconnect",
+     width=130,
+     font=customtkinter.CTkFont(weight="bold", size=18),
+     command=disconnect,
+)
+disconnect_button.place(x=50, y=400)
 
 client_icon = customtkinter.CTkImage(
      dark_image=Image.open("Image/computer.png"), 
@@ -950,6 +1167,10 @@ port_label.place(x=145, y=30)
 
 ip_sever = customtkinter.CTkLabel(sever_information_frame, text=f"IP: {set_ip_sever_combobox.get()}", font=("Helvetica", 15))
 ip_sever.place(x=145, y=60)
+
+# connect_button = customtkinter.CTkButton(
+
+# )
 
 window.mainloop()
 #endregion
