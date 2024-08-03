@@ -2,6 +2,7 @@
 
 import time
 import os
+import shutil
 import threading
 from threading import Thread
 import tkinter as tk
@@ -26,18 +27,88 @@ def download():
     download_dir = tk.filedialog.askdirectory()
     if not download_dir:
         return
+    download_set = set()
+    # download_list = [(path,size,des),(path,size,des),...]
+    download_list = []
+
+    def download_siever(item, parent=download_dir):
+        if item["path"] not in download_set:
+            download_set.add(item["path"])
+            local_path = os.path.normpath(os.path.join(parent, item["name"]))
+            file_exist = os.path.exists(local_path)
+            if file_exist and not tk.messagebox.askyesno(
+                title=f"Replace or Skip {item["type"]}",
+                message=f'The destination already has a {item["type"]} named "{item["name"]}".\nDo you wish to replace it? (no will skip it.)',
+            ):  # short-circuit logic
+                return
+            if item["type"] == "file":
+                if file_exist:
+                    os.remove(local_path)
+                download_list.append((item["path"], item["size"], local_path))
+            else:
+                if file_exist:
+                    shutil.rmtree(local_path)
+                os.mkdir(local_path)
+                for child in item.get("children", []):
+                    download_siever(child, local_path)
+
     for path in treeview.selection():
-        print(path)
+        download_siever(flatten_server_directory[path])
+
+    # downloadFunctionsomethingidk(download_list,progress_update)
+    # def toggle_pause():
+    #     if pause_button["text"] == "Pause":
+    #         pause_button.config(text="Resume")
+    #     else:
+    #         pause_button.config(text="Pause")
+
+    # def cancel_download():
+    #     pass
+
+    # download_popup = tk.Toplevel(root)
+    # frame = ttk.Frame(download_popup)
+    # frame.grid(row=0, column=0, sticky="nwes")
+    # download_popup.resizable(False, False)
+    # download_popup.focus_set()
+    # download_popup.grab_set()
+    # download_popup.transient(root)
+    # download_popup.title("Download process")
+    # pause_button = ttk.Button(frame, text="Pause", command=toggle_pause)
+    # pause_button.grid(row=1, column=0, padx=10, pady=10)
+
+    # cancel_button = ttk.Button(frame, text="Cancel", command=cancel_download)
+    # cancel_button.grid(row=1, column=1, padx=10, pady=10)
+    # root.update_idletasks()
+    # width = download_popup.winfo_width()
+    # height = download_popup.winfo_height()
+    # rootWidth = root.winfo_width()
+    # rootHeight = root.winfo_height()
+    # rootX = root.winfo_x()
+    # rootY = root.winfo_y()
+    # x = rootX + (rootWidth // 2) - (width // 2)
+    # y = rootY + (rootHeight // 2) - (height // 2)
+    # download_popup.geometry(f"+{x}+{y}")
+    # root.wait_window(download_popup)
 
 
-def upload():
+def upload_files():
     if not treeview.selection():
         return
     file_list = tk.filedialog.askopenfilenames()
     if not file_list:
         return
-    for path in file_list:
-        print(path)
+    destination = treeview.selection()[0]
+    # use file_list and destination
+
+
+def upload_folder():
+    if not treeview.selection():
+        return
+    folder = tk.filedialog.askdirectory()
+    if not folder:
+        return
+    destination = treeview.selection()[0]
+    # use folder and destination
 
 
 def flatten_directory():
@@ -150,7 +221,8 @@ def connect():
     directory_thread.start()
 
     connect_button.config(state="disabled")
-    upload_button.config(state="normal")
+    upload_files_button.config(state="normal")
+    upload_folder_button.config(state="normal")
     download_button.config(state="normal")
     folder_button.config(state="normal")
     delete_button.config(state="normal")
@@ -166,7 +238,8 @@ def disconnect():
     msg.disconnect_all()
     treeview.delete(*treeview.get_children())
     connect_button.config(state="normal")
-    upload_button.config(state="disabled")
+    upload_files_button.config(state="disabled")
+    upload_folder_button.config(state="disabled")
     download_button.config(state="disabled")
     folder_button.config(state="disabled")
     delete_button.config(state="disabled")
@@ -188,13 +261,51 @@ def delete():
         mes.close()
 
 
+# wrote the entire thing then realized normal people use class.
+def ask_string(title, prompt):
+    def on_ok():
+        result.set(entry.get())
+        popup.destroy()
+
+    result = tk.StringVar()
+    result.set(None)
+    popup = tk.Toplevel(root)
+    popup.title(title)
+    frame = ttk.Frame(popup)
+    frame.grid(row=0, column=0, sticky="nwes")
+    label = ttk.Label(frame, text=prompt)
+    label.grid(row=0, column=0, padx=0, pady=5, columnspan=2)
+    entry = ttk.Entry(frame)
+    entry.grid(row=1, column=0, padx=5, pady=5, columnspan=2)
+    entry.focus_set()
+    ok_button = ttk.Button(frame, text="OK", command=on_ok)
+    ok_button.grid(row=2, column=0, padx=5, pady=5)
+    cancel_button = ttk.Button(frame, text="Cancel", command=popup.destroy)
+    cancel_button.grid(row=2, column=1, padx=5, pady=5)
+    popup.resizable(False, False)
+    popup.transient(root)
+    popup.grab_set()
+    root.update_idletasks()
+    width = popup.winfo_width()
+    height = popup.winfo_height()
+    rootWidth = root.winfo_width()
+    rootHeight = root.winfo_height()
+    rootX = root.winfo_x()
+    rootY = root.winfo_y()
+    x = rootX + (rootWidth // 2) - (width // 2)
+    y = rootY + (rootHeight // 2) - (height // 2)
+    popup.geometry(f"+{x}+{y}")
+    root.wait_window(popup)
+    return result.get()
+
+
 def folder():
     if not treeview.selection():
         return
     try:
+        last_path = treeview.selection()[0]
+        name = ask_string("Input", "Please enter folder name:")
         mes = messenger(HOST, PORT)
-        last_path = treeview.selection()[-1]
-        name = tk.simpledialog.askstring("Input", "Please enter folder name:")
         if not name:
             return
         if flatten_server_directory[last_path]["type"] == "folder":
@@ -205,6 +316,14 @@ def folder():
         tk.messagebox.showerror("Error", str(e))
     finally:
         mes.close()
+
+
+def highlight_row(event):
+    tree = event.widget
+    item = tree.identify_row(event.y)
+    tree.tk.call(tree, "tag", "remove", "highlight")
+    if item:
+        tree.item(item, tags=("highlight",))
 
 
 def popup_menu(event):
@@ -237,7 +356,8 @@ popup = tk.Menu(root, tearoff=0)
 popup.add_command(label="Delete", command=delete)
 popup.add_command(label="Make folder", command=folder)
 popup.add_command(label="Download", command=download)
-popup.add_command(label="Upload", command=upload)
+popup.add_command(label="Upload files", command=upload_files)
+popup.add_command(label="Upload folder", command=upload_folder)
 
 input_frame = ttk.Frame(main_frame)
 connection_frame = ttk.Frame(input_frame)
@@ -261,8 +381,11 @@ folder_button = ttk.Button(
 download_button = ttk.Button(
     operation_frame, text="Download", state="disabled", command=download
 )
-upload_button = ttk.Button(
-    operation_frame, text="Upload", state="disabled", command=upload
+upload_files_button = ttk.Button(
+    operation_frame, text="Upload files", state="disabled", command=upload_files
+)
+upload_folder_button = ttk.Button(
+    operation_frame, text="Upload folder", state="disabled", command=upload_folder
 )
 search_frame = ttk.Frame(input_frame)
 search_var = tk.StringVar()
@@ -276,6 +399,8 @@ treeview["columns"] = ("mtime", "size")
 treeview.heading("#0", text="Server's directory", anchor="w")
 treeview.heading("mtime", text="Data modified", anchor="w")
 treeview.heading("size", text="Size", anchor="w")
+treeview.tag_configure("highlight", background="lightblue")
+treeview.bind("<Motion>", highlight_row)
 treeview.bind("<Button-3>", popup_menu)
 vsb = ttk.Scrollbar(dir_frame, orient="vertical", command=treeview.yview)
 treeview.configure(yscrollcommand=vsb.set)
@@ -296,7 +421,8 @@ operation_frame.grid(row=1, column=0, sticky="w")
 delete_button.grid(row=0, column=0, padx=4, pady=4, sticky="w")
 folder_button.grid(row=0, column=1, padx=4, pady=4, sticky="w")
 download_button.grid(row=0, column=2, padx=4, pady=4, sticky="w")
-upload_button.grid(row=0, column=3, padx=4, pady=4, sticky="w")
+upload_files_button.grid(row=0, column=3, padx=4, pady=4, sticky="w")
+upload_folder_button.grid(row=0, column=4, padx=4, pady=4, sticky="w")
 dir_frame.grid(row=1, column=0, sticky="nsew")
 treeview.grid(row=0, column=0, sticky="nsew")
 vsb.grid(row=0, column=1, sticky="ns")
