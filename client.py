@@ -37,7 +37,7 @@ def download():
             local_path = os.path.normpath(os.path.join(parent, item["name"]))
             file_exist = os.path.exists(local_path)
             if file_exist and not tk.messagebox.askyesno(
-                title=f"Replace or Skip {item["type"]}",
+                title=f'Replace or Skip {item["type"]}',
                 message=f'The destination already has a {item["type"]} named "{item["name"]}".\nDo you wish to replace it? (no will skip it.)',
             ):  # short-circuit logic
                 return
@@ -56,39 +56,128 @@ def download():
         download_siever(flatten_server_directory[path])
 
     # downloadFunctionsomethingidk(download_list,progress_update)
-    # def toggle_pause():
-    #     if pause_button["text"] == "Pause":
-    #         pause_button.config(text="Resume")
-    #     else:
-    #         pause_button.config(text="Pause")
 
-    # def cancel_download():
-    #     pass
+    download_popup = tk.Toplevel(root)
+    frame = ttk.Frame(download_popup)
+    frame.grid(row=0, column=0, sticky="nwes")
+    download_popup.focus_set()
+    download_popup.grab_set()
+    download_popup.transient(root)
+    download_popup.title("Download process")
 
-    # download_popup = tk.Toplevel(root)
-    # frame = ttk.Frame(download_popup)
-    # frame.grid(row=0, column=0, sticky="nwes")
-    # download_popup.resizable(False, False)
-    # download_popup.focus_set()
-    # download_popup.grab_set()
-    # download_popup.transient(root)
-    # download_popup.title("Download process")
-    # pause_button = ttk.Button(frame, text="Pause", command=toggle_pause)
-    # pause_button.grid(row=1, column=0, padx=10, pady=10)
+    btn_frame = ttk.Frame(download_popup)
+    btn_frame.grid(row=0, column=0, sticky="nsew")
+    sep = ttk.Separator(btn_frame, orient="horizontal")
+    sep.grid(row=1, column=0, columnspan=2, padx=7, sticky="nsew")
+    progresses_frame = ttk.Frame(download_popup)
+    progresses_frame.grid(row=1, column=0, sticky="nsew")
+    canvas = tk.Canvas(progresses_frame)
+    scrollbar = ttk.Scrollbar(progresses_frame, orient="vertical", command=canvas.yview)
+    scrollable_frame = ttk.Frame(canvas)
+    frame_id = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+    canvas.configure(yscrollcommand=scrollbar.set)
+    canvas.bind("<Configure>", lambda e: canvas.itemconfig(frame_id, width=e.width))
+    scrollable_frame.bind(
+        "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+    )
+    canvas.bind_all(
+        "<MouseWheel>",
+        lambda e: canvas.yview_scroll(-1 * int((e.delta / 120)), "units"),
+    )
+    canvas.grid(row=0, column=0, sticky="nsew")
+    scrollbar.grid(row=0, column=1, sticky="ns")
+    download_popup.grid_rowconfigure(1, weight=1)
+    download_popup.grid_columnconfigure(0, weight=1)
+    btn_frame.grid_columnconfigure(1, weight=1)
+    progresses_frame.grid_rowconfigure(0, weight=1)
+    progresses_frame.grid_columnconfigure(0, weight=1)
+    canvas.grid_rowconfigure(0, weight=1)
+    canvas.grid_columnconfigure(0, weight=1)
+    scrollable_frame.grid_columnconfigure(0, weight=1)
 
-    # cancel_button = ttk.Button(frame, text="Cancel", command=cancel_download)
-    # cancel_button.grid(row=1, column=1, padx=10, pady=10)
-    # root.update_idletasks()
-    # width = download_popup.winfo_width()
-    # height = download_popup.winfo_height()
-    # rootWidth = root.winfo_width()
-    # rootHeight = root.winfo_height()
-    # rootX = root.winfo_x()
-    # rootY = root.winfo_y()
-    # x = rootX + (rootWidth // 2) - (width // 2)
-    # y = rootY + (rootHeight // 2) - (height // 2)
-    # download_popup.geometry(f"+{x}+{y}")
-    # root.wait_window(download_popup)
+    def cancel(index):
+        # cancel here
+        progress_frame = ui_list[download_list[index][0]]["frame"]
+        progress_frame.destroy()
+
+    def toggle_pause(index):
+        pause_button = ui_list[download_list[index][0]]["pause"]
+        if pause_button["text"] == "Pause":
+            # pause call here
+            pause_button.config(text="Resume")
+        else:
+            pause_button.config(text="Pause")
+
+    def cancel_all():
+        for i, _ in enumerate(download_list):
+            cancel(i)
+        download_popup.destroy()
+
+    def toggle_pause_all():
+        if pause_all_button["text"] == "Pause all":
+            for i, ui in enumerate(ui_list.values()):
+                if ui["pause"]["text"] == "Pause":
+                    toggle_pause(i)
+            pause_all_button.config(text="Resume all")
+        else:
+            for i, ui in enumerate(ui_list.values()):
+                if ui["pause"]["text"] != "Pause":
+                    toggle_pause(i)
+            pause_all_button.config(text="Pause all")
+
+    def update_callback(path, destination, bytes):
+        # update here
+        ui_list[path]["progress"].step(bytes)
+
+    ui_list = {}
+    for i, file in enumerate(download_list):
+        progress_frame = ttk.Labelframe(scrollable_frame, text="From: " + file[0])
+        progress_frame.grid(row=i, column=0, pady=5, padx=10, sticky="ew")
+
+        des_label = ttk.Label(progress_frame, text="To: " + file[2])
+        des_label.grid(row=0, column=0, columnspan=4, padx=5, pady=5, sticky="ew")
+
+        progress_bar = ttk.Progressbar(progress_frame, length=200, mode="determinate")
+        progress_bar.grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky="ew")
+
+        # speed_label = ttk.Label(progress_frame, text="Speed: N/A")
+        # speed_label.grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        total_label = ttk.Label(progress_frame, text="Total: " + format_bytes(file[1]))
+        total_label.grid(row=2, column=1, padx=5, pady=5, sticky="w")
+        pause_button = ttk.Button(progress_frame, text="Pause")
+        pause_button.config(command=lambda index=i: toggle_pause(index))
+        cancel_button = ttk.Button(
+            progress_frame,
+            text="Cancel",
+            command=lambda index=i: cancel(index),
+        )
+        pause_button.grid(row=2, column=2, padx=5, pady=5, sticky="e")
+        cancel_button.grid(row=2, column=3, padx=5, pady=5, sticky="e")
+        progress_frame.grid_columnconfigure(0, weight=1)
+        ui_list[file[0]] = {
+            "frame": progress_frame,
+            "progress": progress_bar,
+            "pause": pause_button,
+            "cancel": cancel_button,
+        }
+
+    pause_all_button = ttk.Button(btn_frame, text="Pause all", command=toggle_pause_all)
+    pause_all_button.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+
+    cancel_all_button = ttk.Button(btn_frame, text="Cancel all", command=cancel_all)
+    cancel_all_button.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+
+    download_popup.update_idletasks()
+    width = download_popup.winfo_width()
+    height = download_popup.winfo_height()
+    rootWidth = root.winfo_width()
+    rootHeight = root.winfo_height()
+    rootX = root.winfo_x()
+    rootY = root.winfo_y()
+    x = rootX + (rootWidth // 2) - (width // 2)
+    y = rootY + (rootHeight // 2) - (height // 2)
+    download_popup.geometry(f"+{x}+{y}")
+    root.wait_window(download_popup)
 
 
 def upload_files():
@@ -271,6 +360,8 @@ def ask_string(title, prompt):
     result.set(None)
     popup = tk.Toplevel(root)
     popup.title(title)
+    popup.grid_rowconfigure(0, weight=1)
+    popup.grid_columnconfigure(0, weight=1)
     frame = ttk.Frame(popup)
     frame.grid(row=0, column=0, sticky="nwes")
     label = ttk.Label(frame, text=prompt)
@@ -285,7 +376,7 @@ def ask_string(title, prompt):
     popup.resizable(False, False)
     popup.transient(root)
     popup.grab_set()
-    root.update_idletasks()
+    popup.update_idletasks()
     width = popup.winfo_width()
     height = popup.winfo_height()
     rootWidth = root.winfo_width()
@@ -348,7 +439,6 @@ root.title("Client")
 root.minsize(width=600, height=600)
 
 style = ttk.Style(root)
-style.theme_use("clam")
 
 main_frame = ttk.Frame(root, padding=(10, 10, 10, 10))
 

@@ -186,7 +186,6 @@ root.title("Server")
 root.minsize(width=600, height=600)
 
 style = ttk.Style(root)
-style.theme_use("clam")
 
 main_frame = ttk.Frame(root, padding=(10, 10, 10, 10))
 
@@ -207,8 +206,6 @@ log_area = tk.Text(
     scrolltext_frame,
     wrap="word",
     state="disabled",
-    background="#000000",
-    foreground="#20C20E",
 )
 vsb = ttk.Scrollbar(scrolltext_frame, command=log_area.yview, orient="vertical")
 log_area.configure(yscrollcommand=vsb.set)
