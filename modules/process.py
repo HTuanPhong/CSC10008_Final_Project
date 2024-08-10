@@ -7,9 +7,9 @@ import time
 def create_file(path, size):
     with open(path, "wb") as f:
         i = size - 1
-        i = i if i > 0 else 0
-        f.seek(i)
-        f.write(b"\0")
+        if i > -1:
+            f.seek(i)
+            f.write(b"\0")
 
 
 class DownloadManager:
@@ -45,7 +45,8 @@ class DownloadManager:
                         server_path = file_data["server_path"]
                         client_path = file_data["client_path"]
                         temp_path = file_data["temp_path"]
-                    mes.send_DRRQ(server_path, start, length, temp_path)
+                    if length > 0:
+                        mes.send_DRRQ(server_path, start, length, temp_path)
                     with self.lock:
                         file_data = self.files[file_id]
                         file_data["bytes_done"] += length
@@ -72,9 +73,12 @@ class DownloadManager:
 
         create_file(temp_path, size)
         segment_size = size // (self.num_threads * 4)
-        for start in range(0, size, segment_size):
-            length = min(segment_size, size - start)
-            self.segment_queue.put((file_id, start, length))
+        if segment_size == 0:
+            self.segment_queue.put((file_id, 0, 0))
+        else:
+            for start in range(0, size, segment_size):
+                length = min(segment_size, size - start)
+                self.segment_queue.put((file_id, start, length))
 
     def add_files(self, file_list):
         for file in file_list:
@@ -150,7 +154,8 @@ class UploadMananger:
                             continue
                         server_path = file_data["server_path"]
                         client_path = file_data["client_path"]
-                    mes.send_DWRQ(server_path, start, length, client_path)
+                    if length > 0:
+                        mes.send_DWRQ(server_path, start, length, client_path)
                     with self.lock:
                         file_data = self.files[file_id]
                         file_data["bytes_done"] += length
@@ -173,9 +178,12 @@ class UploadMananger:
             "paused_segments": [],
         }
         segment_size = size // (self.num_threads * 4)
-        for start in range(0, size, segment_size):
-            length = min(segment_size, size - start)
-            self.segment_queue.put((file_id, start, length))
+        if segment_size == 0:
+            self.segment_queue.put((file_id, 0, 0))
+        else:
+            for start in range(0, size, segment_size):
+                length = min(segment_size, size - start)
+                self.segment_queue.put((file_id, start, length))
 
     def add_files(self, file_list):
         for file in file_list:

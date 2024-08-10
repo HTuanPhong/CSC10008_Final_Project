@@ -133,9 +133,9 @@ def process_WRQ(sock, ip):
         return False
     with open(file_upload_path, "wb") as f:
         i = file_size - 1
-        i = i if i > 0 else 0
-        f.seek(i)
-        f.write(b"\0")
+        if i > -1:
+            f.seek(i)
+            f.write(b"\0")
     sock.sendall(struct.pack(">B", SUCCESS))
     log(f"[INFO]: {ip} got a success on {OP_STR[WRQ]}")
     return True
