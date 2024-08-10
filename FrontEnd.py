@@ -11,6 +11,7 @@ from threading import Thread
 from modules.shared import *
 from modules.message import messenger, messengerError
 import modules.message as msg
+import shutil
 
 
 # ==== Function in client.py ============================================================================================
@@ -121,10 +122,12 @@ def deactivate():
      download_indicate.configure(fg_color="lightblue")
      upload_indicate.configure(fg_color="lightblue")
      setting_indicate.configure(fg_color="lightblue")
+     progress_indicate.configure(fg_color="lightblue")
 
      download_icon_button.configure(fg_color="lightblue")
      upload_icon_button.configure(fg_color="lightblue")
      setting_icon_button.configure(fg_color="lightblue")
+     progress_icon_button.configure(fg_color="lightblue")
 
 def raise_frame(frame):
     frame.tkraise()
@@ -288,6 +291,45 @@ setting_indicate = customtkinter.CTkLabel(
 setting_indicate.place(x=0, y=200)
 #endregion
 
+#region ProgressBar
+def indicate_progress():
+     deactivate()
+     progress_indicate.configure(fg_color="#0033FF")
+     progress_icon_button.configure(fg_color="#CCFFFF")
+
+     if menu_frame.cget("width") > 45:
+          folding_menu()
+     
+     raise_frame(progress_frame)
+
+progress_icon = customtkinter.CTkImage(dark_image= Image.open("Image/loading-bar.png"), light_image=Image.open("Image/loading-bar.png"), size=(27, 27))
+progress_icon_button = customtkinter.CTkButton(
+     menu_frame,
+     image=progress_icon,
+     width=165,
+     height=32,
+     fg_color="lightblue",
+     hover_color="#CCFFFF",
+     text=" Progress",
+     font=("Helvetica", 18),
+     text_color="black",
+     anchor="w",
+     command=indicate_progress
+)
+progress_icon_button.place(x=1, y=250)
+
+progress_indicate = customtkinter.CTkLabel(
+     menu_frame,
+     text=" ",
+     fg_color="lightblue",
+     height=31,
+     bg_color="lightblue"
+)
+progress_indicate.place(x=0, y=250)
+
+
+#endregion
+
 #------------------------------------------ {{ CONTENT AREA }} ------------------------------------------
 #region content
 content_frame = customtkinter.CTkFrame(
@@ -306,6 +348,9 @@ upload_frame.place(relwidth=1.0, relheight=1.0)
 
 setting_frame = customtkinter.CTkFrame(content_frame, fg_color="white")
 setting_frame.place(relwidth=1.0, relheight=1.0)
+
+progress_frame = customtkinter.CTkFrame(content_frame, fg_color="white")
+progress_frame.place(relwidth=1.0, relheight=1.0)
 
 raise_frame(download_frame)
 
@@ -640,14 +685,166 @@ server_directory = {}
 flatten_server_directory = {}
 
 
+
 def download():
-     if not treeview.selection():
-          return
-     download_dir = customtkinter.filedialog.askdirectory()
-     if not download_dir:
-          return
-     for path in treeview.selection():
-          print(path)
+    if not treeview.selection():
+        return
+    download_dir = tkinter.filedialog.askdirectory()
+    if not download_dir:
+        return
+    download_set = set()
+    # download_list = [(path,size,des),(path,size,des),...]
+    download_list = []
+
+    def download_siever(item, parent=download_dir):
+        if item["path"] not in download_set:
+            download_set.add(item["path"])
+            local_path = os.path.normpath(os.path.join(parent, item["name"]))
+            file_exist = os.path.exists(local_path)
+            if file_exist and not tkinter.messagebox.askyesno(
+                title=f'Replace or Skip {item["type"]}',
+                message=f'The destination already has a {item["type"]} named "{item["name"]}".\nDo you wish to replace it? (no will skip it.)',
+            ):  # short-circuit logic
+                return
+            if item["type"] == "file":
+                if file_exist:
+                    os.remove(local_path)
+                download_list.append((item["path"], item["size"], local_path))
+            else:
+                if file_exist:
+                    shutil.rmtree(local_path)
+                os.mkdir(local_path)
+                for child in item.get("children", []):
+                    download_siever(child, local_path)
+
+    for path in treeview.selection():
+        download_siever(flatten_server_directory[path])
+
+    # downloadFunctionsomethingidk(download_list,progress_update)
+
+    download_popup = tkinter.Toplevel(window)
+    frame = ttk.Frame(download_popup)
+    frame.grid(row=0, column=0, sticky="nwes")
+    download_popup.focus_set()
+    download_popup.grab_set()
+    download_popup.transient(window)
+    download_popup.title("Download process")
+
+    btn_frame = ttk.Frame(download_popup)
+    btn_frame.grid(row=0, column=0, sticky="nsew")
+    sep = ttk.Separator(btn_frame, orient="horizontal")
+    sep.grid(row=1, column=0, columnspan=2, padx=7, sticky="nsew")
+    progresses_frame = ttk.Frame(download_popup)
+    progresses_frame.grid(row=1, column=0, sticky="nsew")
+    canvas = tkinter.Canvas(progresses_frame)
+    scrollbar = ttk.Scrollbar(progresses_frame, orient="vertical", command=canvas.yview)
+    scrollable_frame = ttk.Frame(canvas)
+    frame_id = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+    canvas.configure(yscrollcommand=scrollbar.set)
+    canvas.bind("<Configure>", lambda e: canvas.itemconfig(frame_id, width=e.width))
+    scrollable_frame.bind(
+        "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+    )
+    canvas.bind_all(
+        "<MouseWheel>",
+        lambda e: canvas.yview_scroll(-1 * int((e.delta / 120)), "units"),
+    )
+    canvas.grid(row=0, column=0, sticky="nsew")
+    scrollbar.grid(row=0, column=1, sticky="ns")
+    download_popup.grid_rowconfigure(1, weight=1)
+    download_popup.grid_columnconfigure(0, weight=1)
+    btn_frame.grid_columnconfigure(1, weight=1)
+    progresses_frame.grid_rowconfigure(0, weight=1)
+    progresses_frame.grid_columnconfigure(0, weight=1)
+    canvas.grid_rowconfigure(0, weight=1)
+    canvas.grid_columnconfigure(0, weight=1)
+    scrollable_frame.grid_columnconfigure(0, weight=1)
+
+    def cancel(index):
+        # cancel here
+        progress_frame = ui_list[download_list[index][0]]["frame"]
+        progress_frame.destroy()
+
+    def toggle_pause(index):
+        pause_button = ui_list[download_list[index][0]]["pause"]
+        if pause_button["text"] == "Pause":
+            # pause call here
+            pause_button.config(text="Resume")
+        else:
+            pause_button.config(text="Pause")
+
+    def cancel_all():
+        for i, _ in enumerate(download_list):
+            cancel(i)
+        download_popup.destroy()
+
+    def toggle_pause_all():
+        if pause_all_button["text"] == "Pause all":
+            for i, ui in enumerate(ui_list.values()):
+                if ui["pause"]["text"] == "Pause":
+                    toggle_pause(i)
+            pause_all_button.config(text="Resume all")
+        else:
+            for i, ui in enumerate(ui_list.values()):
+                if ui["pause"]["text"] != "Pause":
+                    toggle_pause(i)
+            pause_all_button.config(text="Pause all")
+
+    def update_callback(path, destination, bytes):
+        # update here
+        ui_list[path]["progress"].step(bytes)
+
+    ui_list = {}
+    for i, file in enumerate(download_list):
+        progress_frame = ttk.Labelframe(scrollable_frame, text="From: " + file[0])
+        progress_frame.grid(row=i, column=0, pady=5, padx=10, sticky="ew")
+
+        des_label = ttk.Label(progress_frame, text="To: " + file[2])
+        des_label.grid(row=0, column=0, columnspan=4, padx=5, pady=5, sticky="ew")
+
+        progress_bar = ttk.Progressbar(progress_frame, length=200, mode="determinate")
+        progress_bar.grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky="ew")
+
+        # speed_label = ttk.Label(progress_frame, text="Speed: N/A")
+        # speed_label.grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        total_label = ttk.Label(progress_frame, text="Total: " + format_bytes(file[1]))
+        total_label.grid(row=2, column=1, padx=5, pady=5, sticky="w")
+        pause_button = ttk.Button(progress_frame, text="Pause")
+        pause_button.config(command=lambda index=i: toggle_pause(index))
+        cancel_button = ttk.Button(
+            progress_frame,
+            text="Cancel",
+            command=lambda index=i: cancel(index),
+        )
+        pause_button.grid(row=2, column=2, padx=5, pady=5, sticky="e")
+        cancel_button.grid(row=2, column=3, padx=5, pady=5, sticky="e")
+        progress_frame.grid_columnconfigure(0, weight=1)
+        ui_list[file[0]] = {
+            "frame": progress_frame,
+            "progress": progress_bar,
+            "pause": pause_button,
+            "cancel": cancel_button,
+        }
+
+    pause_all_button = ttk.Button(btn_frame, text="Pause all", command=toggle_pause_all)
+    pause_all_button.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+
+    cancel_all_button = ttk.Button(btn_frame, text="Cancel all", command=cancel_all)
+    cancel_all_button.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+
+    download_popup.update_idletasks()
+    width = download_popup.winfo_width()
+    height = download_popup.winfo_height()
+    rootWidth = window.winfo_width()
+    rootHeight = window.winfo_height()
+    rootX = window.winfo_x()
+    rootY = window.winfo_y()
+    x = rootX + (rootWidth // 2) - (width // 2)
+    y = rootY + (rootHeight // 2) - (height // 2)
+    download_popup.geometry(f"+{x}+{y}")
+    window.wait_window(download_popup)
+
+
 
 
 def upload():
