@@ -58,8 +58,10 @@ def get_path(sock):
     file_path = os.path.normpath(recv_all(sock, path_length).decode(DEFAULT_FORMAT))
     if file_path.startswith(".." + os.sep):
         return ""
-    local_file_path = os.path.join(SERVER_DATA_PATH, file_path)
+    local_file_path = os.path.normpath(os.path.join(SERVER_DATA_PATH, file_path))
     if not os.path.exists(os.path.dirname(local_file_path)):
+        return ""
+    if os.path.normpath(SERVER_DATA_PATH) == local_file_path:
         return ""
     return local_file_path
 
@@ -130,7 +132,9 @@ def process_WRQ(sock, ip):
         send_error(sock, ip, ERR_STR[FILE_UPLOADING_ERR])
         return False
     with open(file_upload_path, "wb") as f:
-        f.seek(file_size - 1)
+        i = file_size - 1
+        i = i if i > 0 else 0
+        f.seek(i)
         f.write(b"\0")
     sock.sendall(struct.pack(">B", SUCCESS))
     log(f"[INFO]: {ip} got a success on {OP_STR[WRQ]}")
@@ -259,17 +263,15 @@ def process_DRQ(sock, ip):
     """
     log(f"[INFO]: {ip} sent a {OP_STR[DRQ]}.")
     path = get_path(sock)
-    if not path:
-        send_error(sock, ip, ERR_STR[PATH_ERR])
-        return False
-    try:
-        if os.path.isfile(path):
-            os.remove(path)
-        elif os.path.isdir(path):
-            shutil.rmtree(path)
-    except OSError as e:
-        send_error(sock, ip, ERR_STR[PATH_ERR])
-        return False
+    if path:
+        try:
+            if os.path.isfile(path):
+                os.remove(path)
+            elif os.path.isdir(path):
+                shutil.rmtree(path)
+        except OSError as e:
+            send_error(sock, ip, ERR_STR[PATH_ERR])
+            return False
     sock.sendall(struct.pack(">B", SUCCESS))
     log(f"[INFO]: {ip} got a success on {OP_STR[DRQ]}")
     return True
@@ -283,7 +285,7 @@ def get_directory():
 
         with os.scandir(root_dir) as it:
             for entry in it:
-                entry_path = os.path.join(current_path, entry.name)
+                entry_path = os.path.join(current_path, entry.name).replace("\\", "/")
                 entry_info = {
                     "type": "folder" if entry.is_dir(follow_symlinks=False) else "file",
                     "name": entry.name,

@@ -12,6 +12,7 @@ from queue import Queue
 from modules.shared import *
 from modules.message import messenger, messengerError
 import modules.message as msg
+import modules.process as pro
 
 HOST = None
 PORT = None
@@ -19,56 +20,19 @@ disconnect_event = threading.Event()
 directory_lock = threading.Lock()
 server_directory = {}
 flatten_server_directory = {}
+management_msgr = None
 
 
-def download():
-    if not treeview.selection():
-        return
-    download_dir = tk.filedialog.askdirectory()
-    if not download_dir:
-        return
-    download_set = set()
-    # download_list = [(path,size,des),(path,size,des),...]
-    download_list = []
-
-    def download_siever(item, parent=download_dir):
-        if item["path"] not in download_set:
-            download_set.add(item["path"])
-            local_path = os.path.normpath(os.path.join(parent, item["name"]))
-            file_exist = os.path.exists(local_path)
-            if file_exist and not tk.messagebox.askyesno(
-                title=f'Replace or Skip {item["type"]}',
-                message=f'The destination already has a {item["type"]} named "{item["name"]}".\nDo you wish to replace it? (no will skip it.)',
-            ):  # short-circuit logic
-                return
-            if item["type"] == "file":
-                if file_exist:
-                    os.remove(local_path)
-                download_list.append((item["path"], item["size"], local_path))
-            else:
-                if file_exist:
-                    shutil.rmtree(local_path)
-                os.mkdir(local_path)
-                for child in item.get("children", []):
-                    download_siever(child, local_path)
-
-    for path in treeview.selection():
-        download_siever(flatten_server_directory[path])
-
-    # downloadFunctionsomethingidk(download_list,progress_update)
-
+def file_progress_ui(file_list, process):
     download_popup = tk.Toplevel(root)
     frame = ttk.Frame(download_popup)
     frame.grid(row=0, column=0, sticky="nwes")
-    download_popup.focus_set()
     download_popup.grab_set()
-    download_popup.transient(root)
+    download_popup.focus_set()
     download_popup.title("Download process")
 
-    btn_frame = ttk.Frame(download_popup)
-    btn_frame.grid(row=0, column=0, sticky="nsew")
-    sep = ttk.Separator(btn_frame, orient="horizontal")
-    sep.grid(row=1, column=0, columnspan=2, padx=7, sticky="nsew")
+    btn_frame = ttk.Labelframe(download_popup, text="Button for all files:")
+    btn_frame.grid(row=0, column=0, sticky="ew")
     progresses_frame = ttk.Frame(download_popup)
     progresses_frame.grid(row=1, column=0, sticky="nsew")
     canvas = tk.Canvas(progresses_frame)
@@ -88,60 +52,79 @@ def download():
     scrollbar.grid(row=0, column=1, sticky="ns")
     download_popup.grid_rowconfigure(1, weight=1)
     download_popup.grid_columnconfigure(0, weight=1)
-    btn_frame.grid_columnconfigure(1, weight=1)
     progresses_frame.grid_rowconfigure(0, weight=1)
     progresses_frame.grid_columnconfigure(0, weight=1)
     canvas.grid_rowconfigure(0, weight=1)
     canvas.grid_columnconfigure(0, weight=1)
     scrollable_frame.grid_columnconfigure(0, weight=1)
+    stop_update = threading.Event()  # tkinter not thread safe
+    ui_lock = threading.Lock()
+
+    def update_progress(index, bytes):
+        if stop_update.is_set():
+            return
+        with ui_lock:
+            if index not in ui_list:
+                return
+            ui = ui_list[index]
+            ui["progress"]["value"] = bytes
+            if bytes == file_list[index][1]:
+                progress_frame = ui["frame"]
+                del ui_list[index]
+                progress_frame.destroy()
+            download_popup.update_idletasks()
+
+    manager = process(HOST, PORT, 6, update_progress)
 
     def cancel(index):
-        # cancel here
-        progress_frame = ui_list[download_list[index][0]]["frame"]
-        progress_frame.destroy()
+        with ui_lock:
+            manager.remove_file(index)
+            progress_frame = ui_list[index]["frame"]
+            del ui_list[index]
+            progress_frame.destroy()
 
     def toggle_pause(index):
-        pause_button = ui_list[download_list[index][0]]["pause"]
-        if pause_button["text"] == "Pause":
-            # pause call here
-            pause_button.config(text="Resume")
-        else:
-            pause_button.config(text="Pause")
-
-    def cancel_all():
-        for i, _ in enumerate(download_list):
-            cancel(i)
-        download_popup.destroy()
+        with ui_lock:
+            pause_button = ui_list[index]["pause"]
+            if pause_button["text"] == "Pause":
+                manager.pause_file(index)
+                pause_button.config(text="Resume")
+            else:
+                manager.resume_file(index)
+                pause_button.config(text="Pause")
 
     def toggle_pause_all():
-        if pause_all_button["text"] == "Pause all":
-            for i, ui in enumerate(ui_list.values()):
-                if ui["pause"]["text"] == "Pause":
-                    toggle_pause(i)
-            pause_all_button.config(text="Resume all")
-        else:
-            for i, ui in enumerate(ui_list.values()):
-                if ui["pause"]["text"] != "Pause":
-                    toggle_pause(i)
-            pause_all_button.config(text="Pause all")
+        with ui_lock:
+            if pause_all_button["text"] == "Pause":
+                for index, ui in ui_list.items():
+                    if ui["pause"]["text"] == "Pause":
+                        manager.pause_file(index)
+                        ui["pause"].config(text="Resume")
+                pause_all_button.config(text="Resume")
+            else:
+                for index, ui in ui_list.items():
+                    if ui["pause"]["text"] == "Resume":
+                        manager.resume_file(index)
+                        ui["pause"].config(text="Pause")
+                pause_all_button.config(text="Pause")
 
-    def update_callback(path, destination, bytes):
-        # update here
-        ui_list[path]["progress"].step(bytes)
+    def cancel_all():
+        stop_update.set()
+        with ui_lock:
+            manager.stop()
+            canvas.unbind_all("<MouseWheel>")
+            download_popup.destroy()
 
     ui_list = {}
-    for i, file in enumerate(download_list):
+    for i, file in enumerate(file_list):
         progress_frame = ttk.Labelframe(scrollable_frame, text="From: " + file[0])
         progress_frame.grid(row=i, column=0, pady=5, padx=10, sticky="ew")
-
         des_label = ttk.Label(progress_frame, text="To: " + file[2])
         des_label.grid(row=0, column=0, columnspan=4, padx=5, pady=5, sticky="ew")
-
-        progress_bar = ttk.Progressbar(progress_frame, length=200, mode="determinate")
+        progress_bar = ttk.Progressbar(
+            progress_frame, maximum=file[1] + 1, mode="determinate"
+        )
         progress_bar.grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky="ew")
-
-        # speed_label = ttk.Label(progress_frame, text="Speed: N/A")
-        # speed_label.grid(row=2, column=0, padx=5, pady=5, sticky="w")
         total_label = ttk.Label(progress_frame, text="Total: " + format_bytes(file[1]))
         total_label.grid(row=2, column=1, padx=5, pady=5, sticky="w")
         pause_button = ttk.Button(progress_frame, text="Pause")
@@ -154,19 +137,17 @@ def download():
         pause_button.grid(row=2, column=2, padx=5, pady=5, sticky="e")
         cancel_button.grid(row=2, column=3, padx=5, pady=5, sticky="e")
         progress_frame.grid_columnconfigure(0, weight=1)
-        ui_list[file[0]] = {
+        ui_list[i] = {
             "frame": progress_frame,
             "progress": progress_bar,
             "pause": pause_button,
             "cancel": cancel_button,
         }
 
-    pause_all_button = ttk.Button(btn_frame, text="Pause all", command=toggle_pause_all)
+    pause_all_button = ttk.Button(btn_frame, text="Pause", command=toggle_pause_all)
     pause_all_button.grid(row=0, column=0, padx=5, pady=5, sticky="w")
-
-    cancel_all_button = ttk.Button(btn_frame, text="Cancel all", command=cancel_all)
+    cancel_all_button = ttk.Button(btn_frame, text="Cancel", command=cancel_all)
     cancel_all_button.grid(row=0, column=1, padx=5, pady=5, sticky="w")
-
     download_popup.update_idletasks()
     width = download_popup.winfo_width()
     height = download_popup.winfo_height()
@@ -177,7 +158,47 @@ def download():
     x = rootX + (rootWidth // 2) - (width // 2)
     y = rootY + (rootHeight // 2) - (height // 2)
     download_popup.geometry(f"+{x}+{y}")
+    download_popup.update_idletasks()
+    download_popup.protocol("WM_DELETE_WINDOW", cancel_all)
+    manager.add_files(file_list)
+    manager.start()
+
     root.wait_window(download_popup)
+
+
+def download():
+    if not treeview.selection():
+        return
+    download_dir = tk.filedialog.askdirectory()
+    if not download_dir:
+        return
+    download_set = set()
+    download_list = []
+
+    def download_siever(item, parent=download_dir):
+        if item["path"] not in download_set:
+            download_set.add(item["path"])
+            local_path = os.path.normpath(os.path.join(parent, item["name"]))
+            file_exist = os.path.exists(local_path)
+            if not file_exist or tk.messagebox.askyesno(
+                title=f'Replace or Skip {item["type"]}',
+                message=f'The destination already has a {"folder" if os.path.isfile(local_path) else "file"} named "{item["name"]}".\nDo you wish to replace it? (no will skip it.)',
+            ):  # short-circuit logic
+                if item["type"] == "file":
+                    if file_exist:
+                        os.remove(local_path)
+                    download_list.append((item["path"], item["size"], local_path))
+                else:
+                    if file_exist:
+                        shutil.rmtree(local_path)
+                    os.mkdir(local_path)
+                    for child in item.get("children", []):
+                        download_siever(child, local_path)
+
+    for path in treeview.selection():
+        download_siever(flatten_server_directory[path])
+
+    file_progress_ui(download_list, pro.DownloadManager)
 
 
 def upload_files():
@@ -187,7 +208,32 @@ def upload_files():
     if not file_list:
         return
     destination = treeview.selection()[0]
-    # use file_list and destination
+    if flatten_server_directory[destination]["type"] == "file":
+        destination = os.path.dirname(destination)
+    upload_list = []
+    delete_list = []
+    for file in file_list:
+        file_name = os.path.basename(file)
+        server_path = os.path.normpath(os.path.join(destination, file_name))
+        file_exist = server_path in flatten_server_directory
+        if not file_exist or tk.messagebox.askyesno(
+            title=f"Replace or Skip file",
+            message=f'The destination already has a {flatten_server_directory[server_path]["type"]} named "{file_name}".\nDo you wish to replace it? (no will skip it.)',
+        ):
+            if file_exist:
+                delete_list.append(server_path)
+            upload_list.append(
+                (os.path.normpath(file), os.path.getsize(file), server_path)
+            )
+    try:
+        for path in delete_list:
+            management_msgr.send_DRQ(path)
+        for file in upload_list:
+            management_msgr.send_WRQ(file[2], file[1])
+    except (OSError, messengerError) as e:
+        tk.messagebox.showerror("Error", str(e))
+        return
+    file_progress_ui(upload_list, pro.UploadMananger)
 
 
 def upload_folder():
@@ -197,7 +243,52 @@ def upload_folder():
     if not folder:
         return
     destination = treeview.selection()[0]
-    # use folder and destination
+    if flatten_server_directory[destination]["type"] == "file":
+        destination = os.path.dirname(destination)
+    upload_list = []
+    delete_list = []
+    make_list = []
+
+    def upload_siever(root_dir, current_path):
+        with os.scandir(root_dir) as it:
+            for entry in it:
+                server_path = os.path.join(current_path, entry.name)
+                if not entry.is_dir(follow_symlinks=False):
+                    upload_list.append(
+                        (
+                            # python module maker need to agree on the path like tkinter give / os.path give \\ scandir path give / MAKE UP UR MIND!
+                            os.path.normpath(entry.path),
+                            entry.stat().st_size,
+                            server_path,
+                        )
+                    )
+                else:
+                    make_list.append(server_path)
+                    upload_siever(entry.path, server_path)
+
+    folder_name = os.path.basename(folder)
+    server_path = os.path.normpath(os.path.join(destination, folder_name))
+    entry_exist = server_path in flatten_server_directory
+    if not entry_exist or tk.messagebox.askyesno(
+        title=f"Replace or Skip folder",
+        message=f'The destination already has a {flatten_server_directory[server_path]["type"]} named "{folder_name}".\nDo you wish to replace it? (no will skip it.)',
+    ):
+        if entry_exist:
+            delete_list.append(server_path)
+        make_list.append(server_path)
+        upload_siever(folder, server_path)
+    try:
+        for path in delete_list:
+            management_msgr.send_DRQ(path)
+        for directory in make_list:
+            management_msgr.send_FRQ(directory)
+        for file in upload_list:
+            management_msgr.send_WRQ(file[2], file[1])
+    except (OSError, messengerError) as e:
+        tk.messagebox.showerror("Error", str(e))
+        return
+
+    file_progress_ui(upload_list, pro.UploadMananger)
 
 
 def flatten_directory():
@@ -213,6 +304,13 @@ def flatten_directory():
     return flat_dict
 
 
+def normalize_directory(dir):
+    dir["path"] = os.path.normpath(dir["path"])
+    if dir["type"] == "folder":
+        for child in dir.get("children", []):
+            normalize_directory(child)
+
+
 def monitor_directory(msgr):
     try:
         msgr.sub_DTRQ()
@@ -220,10 +318,11 @@ def monitor_directory(msgr):
         while not disconnect_event.is_set():
             data = msgr.recv_DTRQ()
             with directory_lock:
+                normalize_directory(data)
                 server_directory = data
                 flatten_server_directory = flatten_directory()
                 update_directory()
-    except (OSError, msg.messengerError) as e:
+    except (OSError, messengerError) as e:
         if not disconnect_event.is_set():
             tk.messagebox.showerror("Error", str(e))
         disconnect()
@@ -297,16 +396,17 @@ def validate_input():
 def connect():
     if not validate_input():
         return
-    global HOST, PORT
+    global HOST, PORT, management_msgr
     HOST = host_entry.get()
     PORT = int(port_entry.get())
     try:
-        dir_msg = messenger(HOST, PORT)
-    except (OSError, msg.messengerError) as e:
+        dir_msgr = messenger(HOST, PORT)
+        management_msgr = messenger(HOST, PORT)
+    except (OSError, messengerError) as e:
         tk.messagebox.showerror("Error", str(e))
         return
     disconnect_event.clear()
-    directory_thread = Thread(target=monitor_directory, args=(dir_msg,), daemon=True)
+    directory_thread = Thread(target=monitor_directory, args=(dir_msgr,), daemon=True)
     directory_thread.start()
 
     connect_button.config(state="disabled")
@@ -318,6 +418,7 @@ def connect():
     disconnect_button.config(state="normal")
     host_entry.config(state="disabled")
     port_entry.config(state="disabled")
+    search_entry.config(state="normal")
 
 
 def disconnect():
@@ -335,22 +436,19 @@ def disconnect():
     disconnect_button.config(state="disabled")
     host_entry.config(state="normal")
     port_entry.config(state="normal")
+    search_entry.config(state="disabled")
 
 
 def delete():
     if not treeview.selection():
         return
     try:
-        mes = messenger(HOST, PORT)
         for path in treeview.selection():
-            mes.send_DRQ(path)
-    except (OSError, msg.messengerError) as e:
+            management_msgr.send_DRQ(path)
+    except (OSError, messengerError) as e:
         tk.messagebox.showerror("Error", str(e))
-    finally:
-        mes.close()
 
 
-# wrote the entire thing then realized normal people use class.
 def ask_string(title, prompt):
     def on_ok():
         result.set(entry.get())
@@ -393,20 +491,17 @@ def ask_string(title, prompt):
 def folder():
     if not treeview.selection():
         return
+    last_path = treeview.selection()[0]
+    name = ask_string("Input", "Please enter folder name:")
+    if not name:
+        return
     try:
-        last_path = treeview.selection()[0]
-        name = ask_string("Input", "Please enter folder name:")
-        mes = messenger(HOST, PORT)
-        if not name:
-            return
         if flatten_server_directory[last_path]["type"] == "folder":
-            mes.send_FRQ(os.path.join(last_path, name))
+            management_msgr.send_FRQ(os.path.join(last_path, name))
         else:
-            mes.send_FRQ(os.path.join(os.path.dirname(last_path), name))
-    except (OSError, msg.messengerError) as e:
+            management_msgr.send_FRQ(os.path.join(os.path.dirname(last_path), name))
+    except (OSError, messengerError) as e:
         tk.messagebox.showerror("Error", str(e))
-    finally:
-        mes.close()
 
 
 def highlight_row(event):
@@ -431,8 +526,6 @@ def search_dir(*args):
     with directory_lock:
         update_directory(search_var.get())
 
-
-explorer_objects = {}
 
 root = tk.Tk()
 root.title("Client")
@@ -481,7 +574,7 @@ search_frame = ttk.Frame(input_frame)
 search_var = tk.StringVar()
 search_var.trace("w", search_dir)
 search_label = ttk.Label(search_frame, text="Query name:")
-search_entry = ttk.Entry(search_frame, textvariable=search_var)
+search_entry = ttk.Entry(search_frame, textvariable=search_var, state="disabled")
 dir_frame = ttk.Frame(main_frame)
 
 treeview = ttk.Treeview(dir_frame)

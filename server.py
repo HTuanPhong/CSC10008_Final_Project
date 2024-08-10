@@ -19,7 +19,7 @@ import modules.shared as shared
 
 # settings:
 server_default_port = shared.DEFAULT_SERVER_PORT
-client_timeout = 120  # seconds
+client_timeout = None  # seconds
 directory_refresh_rate = 1  # seconds
 
 

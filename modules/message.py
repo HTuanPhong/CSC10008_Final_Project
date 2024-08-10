@@ -30,7 +30,9 @@ class messengerError(Exception):
 class messenger:
     def __init__(self, host, port):
         self.sock = socket(AF_INET, SOCK_STREAM)
+        self.sock.settimeout(10)
         self.sock.connect((host, port))
+        self.sock.settimeout(None)
         with lock:
             messengers.append(self)
 
@@ -41,9 +43,8 @@ class messenger:
 
     def send_RRQ(self, file_path):
         """send Read request"""
-        self.sock.sendall(
-            struct.pack(">BB", RRQ, len(file_path)) + file_path.encode(FORMAT)
-        )
+        file_path = file_path.replace("\\", "/").encode(FORMAT)
+        self.sock.sendall(struct.pack(">BB", RRQ, len(file_path)) + file_path)
         result_opcode = struct.unpack(">B", recv_all(self.sock, 1))[0]
 
         if result_opcode == SUCCESS:
@@ -53,9 +54,10 @@ class messenger:
 
     def send_WRQ(self, file_path, size):
         """send Write request"""
+        file_path = file_path.replace("\\", "/").encode(FORMAT)
         self.sock.sendall(
             struct.pack(">BB", WRQ, len(file_path))
-            + file_path.encode(FORMAT)
+            + file_path
             + struct.pack(">Q", size)
         )
         result_opcode = struct.unpack(">B", recv_all(self.sock, 1))[0]
@@ -65,9 +67,10 @@ class messenger:
 
     def send_DRRQ(self, file_path, offset, length, local_file_path):
         """send Data read request"""
+        file_path = file_path.replace("\\", "/").encode(FORMAT)
         self.sock.sendall(
             struct.pack(">BB", DRRQ, len(file_path))
-            + file_path.encode(FORMAT)
+            + file_path
             + struct.pack(">QQ", offset, length)
         )
         result_opcode = struct.unpack(">B", recv_all(self.sock, 1))[0]
@@ -79,9 +82,10 @@ class messenger:
 
     def send_DWRQ(self, file_path, offset, length, local_file_path):
         """send Data write request"""
+        file_path = file_path.replace("\\", "/").encode(FORMAT)
         self.sock.sendall(
             struct.pack(">BB", DWRQ, len(file_path))
-            + file_path.encode(FORMAT)
+            + file_path
             + struct.pack(">QQ", offset, length)
         )
         with open(local_file_path, "rb") as f:
@@ -93,18 +97,16 @@ class messenger:
 
     def send_FWRQ(self, file_path):
         """send Finish write request"""
-        self.sock.sendall(
-            struct.pack(">BB", FWRQ, len(file_path)) + file_path.encode(FORMAT)
-        )
+        file_path = file_path.replace("\\", "/").encode(FORMAT)
+        self.sock.sendall(struct.pack(">BB", FWRQ, len(file_path)) + file_path)
         result_opcode = struct.unpack(">B", recv_all(self.sock, 1))[0]
         if result_opcode == ERROR:
             self._raise_err()
 
     def send_DRQ(self, file_path):
         """send Delete request"""
-        self.sock.sendall(
-            struct.pack(">BB", DRQ, len(file_path)) + file_path.encode(FORMAT)
-        )
+        file_path = file_path.replace("\\", "/").encode(FORMAT)
+        self.sock.sendall(struct.pack(">BB", DRQ, len(file_path)) + file_path)
         result_opcode = struct.unpack(">B", recv_all(self.sock, 1))[0]
         if result_opcode == ERROR:
             self._raise_err()
@@ -125,7 +127,8 @@ class messenger:
 
     def send_FRQ(self, path):
         """send Create folder request"""
-        self.sock.sendall(struct.pack(">BB", FRQ, len(path)) + path.encode(FORMAT))
+        path = path.replace("\\", "/").encode(FORMAT)
+        self.sock.sendall(struct.pack(">BB", FRQ, len(path)) + path)
         result_opcode = struct.unpack(">B", recv_all(self.sock, 1))[0]
         if result_opcode == ERROR:
             self._raise_err()
@@ -135,6 +138,16 @@ class messenger:
             self.sock.shutdown(SHUT_RDWR)
 
     def close(self):
+        if self.sock:
+            self.sock.close()
+        with lock:
+            if self in messengers:
+                messengers.remove(self)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
         if self.sock:
             self.sock.close()
         with lock:
