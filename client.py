@@ -10,7 +10,7 @@ from tkinter import ttk
 from tkinter import filedialog
 from queue import Queue
 from modules.shared import *
-from modules.message import messenger, messengerError
+from modules.message import Messenger, MessengerError
 import modules.message as msg
 import modules.process as pro
 
@@ -230,7 +230,7 @@ def upload_files():
             management_msgr.send_DRQ(path)
         for file in upload_list:
             management_msgr.send_WRQ(file[2], file[1])
-    except (OSError, messengerError) as e:
+    except (OSError, MessengerError) as e:
         tk.messagebox.showerror("Error", str(e))
         return
     file_progress_ui(upload_list, pro.UploadManager)
@@ -284,7 +284,7 @@ def upload_folder():
             management_msgr.send_FRQ(directory)
         for file in upload_list:
             management_msgr.send_WRQ(file[2], file[1])
-    except (OSError, messengerError) as e:
+    except (OSError, MessengerError) as e:
         tk.messagebox.showerror("Error", str(e))
         return
 
@@ -322,7 +322,7 @@ def monitor_directory(msgr):
                 server_directory = data
                 flatten_server_directory = flatten_directory()
                 update_directory()
-    except (OSError, messengerError) as e:
+    except (OSError, MessengerError) as e:
         if not disconnect_event.is_set():
             tk.messagebox.showerror("Error", str(e))
         disconnect()
@@ -400,9 +400,9 @@ def connect():
     HOST = host_entry.get()
     PORT = int(port_entry.get())
     try:
-        dir_msgr = messenger(HOST, PORT)
-        management_msgr = messenger(HOST, PORT)
-    except (OSError, messengerError) as e:
+        dir_msgr = Messenger(HOST, PORT)
+        management_msgr = Messenger(HOST, PORT)
+    except (OSError, MessengerError) as e:
         tk.messagebox.showerror("Error", str(e))
         return
     disconnect_event.clear()
@@ -445,7 +445,7 @@ def delete():
     try:
         for path in treeview.selection():
             management_msgr.send_DRQ(path)
-    except (OSError, messengerError) as e:
+    except (OSError, MessengerError) as e:
         tk.messagebox.showerror("Error", str(e))
 
 
@@ -500,7 +500,7 @@ def folder():
             management_msgr.send_FRQ(os.path.join(last_path, name))
         else:
             management_msgr.send_FRQ(os.path.join(os.path.dirname(last_path), name))
-    except (OSError, messengerError) as e:
+    except (OSError, MessengerError) as e:
         tk.messagebox.showerror("Error", str(e))
 
 

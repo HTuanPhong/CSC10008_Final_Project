@@ -28,7 +28,7 @@ class DownloadManager:
 
     def worker(self):
         try:
-            with messenger(self.host, self.port) as mes:
+            with Messenger(self.host, self.port) as mes:
                 while True:
                     segment = self.segment_queue.get()
                     if segment is None:
@@ -57,7 +57,7 @@ class DownloadManager:
                         if file_data["bytes_done"] == file_data["size"]:
                             os.rename(temp_path, client_path)
                     self.segment_queue.task_done()
-        except (OSError, messengerError) as e:
+        except (OSError, MessengerError) as e:
             print(e)
 
     def add_file(self, server_path, size, client_path):
@@ -139,7 +139,7 @@ class UploadManager:
 
     def worker(self):
         try:
-            with messenger(self.host, self.port) as mes:
+            with Messenger(self.host, self.port) as mes:
                 while True:
                     segment = self.segment_queue.get()
                     if segment is None:
@@ -167,7 +167,7 @@ class UploadManager:
                         if file_data["bytes_done"] == file_data["size"]:
                             mes.send_FWRQ(server_path)
                     self.segment_queue.task_done()
-        except (OSError, messengerError) as e:
+        except (OSError, MessengerError) as e:
             print(e)
 
     def add_file(self, client_path, size, server_path):
