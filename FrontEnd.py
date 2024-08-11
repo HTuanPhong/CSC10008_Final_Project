@@ -15,6 +15,8 @@ from modules.message import messenger, messengerError
 import modules.message as msg
 import modules.process as pro
 
+import warnings
+warnings.filterwarnings("ignore", message=".*Given image is not CTkImage.*")
 
 HOST = None
 PORT = None
@@ -292,8 +294,6 @@ setting_indicate.place(x=0, y=150)
 #endregion
 
 raise_frame(explorer_frame)
-
-
 
 #region Explorer
 # -------------------------------------------------------------- // Function \\ --------------------------------------------------------------
