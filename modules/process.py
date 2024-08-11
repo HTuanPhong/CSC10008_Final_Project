@@ -12,6 +12,9 @@ def create_file(path, size):
             f.write(b"\0")
 
 
+MIN_SEGMENT_SIZE = 65536
+
+
 class DownloadManager:
     def __init__(self, host, port, num_threads, update=print):
         self.host = host
@@ -72,12 +75,13 @@ class DownloadManager:
         }
 
         create_file(temp_path, size)
-        segment_size = size // (self.num_threads * 4)
-        if segment_size == 0:
+        if size == 0:
             self.segment_queue.put((file_id, 0, 0))
         else:
+            segment_size = max(size // (self.num_threads * 4), MIN_SEGMENT_SIZE)
             for start in range(0, size, segment_size):
                 length = min(segment_size, size - start)
+                print((file_id, start, length))
                 self.segment_queue.put((file_id, start, length))
 
     def add_files(self, file_list):
@@ -177,10 +181,10 @@ class UploadMananger:
             "bytes_done": 0,
             "paused_segments": [],
         }
-        segment_size = size // (self.num_threads * 4)
-        if segment_size == 0:
+        if size == 0:
             self.segment_queue.put((file_id, 0, 0))
         else:
+            segment_size = max(size // (self.num_threads * 4), MIN_SEGMENT_SIZE)
             for start in range(0, size, segment_size):
                 length = min(segment_size, size - start)
                 self.segment_queue.put((file_id, start, length))
