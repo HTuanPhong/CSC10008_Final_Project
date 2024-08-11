@@ -81,7 +81,6 @@ class DownloadManager:
             segment_size = max(size // (self.num_threads * 4), MIN_SEGMENT_SIZE)
             for start in range(0, size, segment_size):
                 length = min(segment_size, size - start)
-                print((file_id, start, length))
                 self.segment_queue.put((file_id, start, length))
 
     def add_files(self, file_list):
