@@ -233,7 +233,7 @@ def upload_files():
     except (OSError, messengerError) as e:
         tk.messagebox.showerror("Error", str(e))
         return
-    file_progress_ui(upload_list, pro.UploadMananger)
+    file_progress_ui(upload_list, pro.UploadManager)
 
 
 def upload_folder():
@@ -288,7 +288,7 @@ def upload_folder():
         tk.messagebox.showerror("Error", str(e))
         return
 
-    file_progress_ui(upload_list, pro.UploadMananger)
+    file_progress_ui(upload_list, pro.UploadManager)
 
 
 def flatten_directory():

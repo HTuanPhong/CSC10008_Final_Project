@@ -126,7 +126,7 @@ class DownloadManager:
                 os.remove(self.files[file_id]["temp_path"])
 
 
-class UploadMananger:
+class UploadManager:
     def __init__(self, host, port, num_threads, update=print):
         self.host = host
         self.port = port

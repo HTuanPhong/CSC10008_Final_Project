@@ -516,7 +516,7 @@ def upload_files():
     except (OSError, messengerError) as e:
         tkinter.messagebox.showerror("Error", str(e))
         return
-    file_progress_ui(upload_list, pro.UploadMananger)
+    file_progress_ui(upload_list, pro.UploadManager)
 
 
 def upload_folder():
@@ -571,7 +571,7 @@ def upload_folder():
         tkinter.messagebox.showerror("Error", str(e))
         return
 
-    file_progress_ui(upload_list, pro.UploadMananger)
+    file_progress_ui(upload_list, pro.UploadManager)
 
 def flatten_directory():
     flat_dict = {}
