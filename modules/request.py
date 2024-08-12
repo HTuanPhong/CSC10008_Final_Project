@@ -226,8 +226,10 @@ def process_FWRQ(sock, ip):
         send_error(sock, ip, ERR_STR[PATH_ERR])
         return False
     file_upload_path = file_path + ".uploading"
-    new_file_path = os.path.splitext(file_upload_path)[0]
-    os.rename(file_upload_path, get_unique_filename(new_file_path))
+    new_file_path = os.path.join(
+        SERVER_DATA_PATH, os.path.splitext(file_upload_path)[0]
+    )
+    os.rename(file_upload_path, get_unique_filepath(new_file_path, os.path.exists))
     sock.sendall(struct.pack(">B", SUCCESS))
     log(f"[INFO]: {ip} got a success on {OP_STR[FWRQ]}")
     return True

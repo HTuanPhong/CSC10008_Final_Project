@@ -75,16 +75,16 @@ def recv_all(sock, n):
 import os
 
 
-def get_unique_filename(filename):
+def get_unique_filepath(filepath, check_func):
     """
-    Generate a unique filename by appending a number if needed.
+    Generate a unique filepath by appending a number if needed.
     """
-    base, extension = os.path.splitext(filename)
-    new_filename = filename
+    base, extension = os.path.splitext(filepath)
+    new_filepath = filepath
     counter = 1
 
-    while os.path.exists(new_filename):
-        new_filename = f"{base}({counter}){extension}"
+    while check_func(new_filepath):
+        new_filepath = f"{base}({counter}){extension}"
         counter += 1
 
-    return new_filename
+    return new_filepath

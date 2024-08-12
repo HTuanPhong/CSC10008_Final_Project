@@ -2,6 +2,7 @@ import threading
 from queue import Queue
 from modules.message import *
 import time
+import os
 
 
 def create_file(path, size):
