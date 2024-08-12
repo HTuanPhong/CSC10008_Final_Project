@@ -15,8 +15,6 @@ from modules.message import Messenger, MessengerError
 import modules.message as msg
 import modules.process as pro
 
-import warnings
-warnings.filterwarnings("ignore", message=".*Given image is not CTkImage.*")
 
 HOST = None
 PORT = None
@@ -123,11 +121,9 @@ def folding_menu():
 def deactivate():
      explorer_indicate.configure(fg_color="lightblue")
      setting_indicate.configure(fg_color="lightblue")
-    #  progress_indicate.configure(fg_color="lightblue")
 
      explorer_icon_button.configure(fg_color="lightblue")
      setting_icon_button.configure(fg_color="lightblue")
-    #  progress_icon_button.configure(fg_color="lightblue")
 
 def raise_frame(frame):
     frame.tkraise()
@@ -155,8 +151,6 @@ explorer_frame.place(relwidth=1.0, relheight=1.0)
 setting_frame = customtkinter.CTkFrame(content_frame, fg_color="white")
 setting_frame.place(relwidth=1.0, relheight=1.0)
 
-# progress_frame = customtkinter.CTkFrame(content_frame, fg_color="white")
-# progress_frame.place(relwidth=1.0, relheight=1.0)
 
 # --------------------------------------------------// Object \\ --------------------------------------------------
 is_folding = False
@@ -174,14 +168,12 @@ toggle_button.place(x=5, y=10)
 #endregion
 
 
-#region Pape
+
 # --------------------------------------------------// Image - Icon \\ --------------------------------------------------
 explorer_icon = customtkinter.CTkImage(dark_image=Image.open("Image/explorer.png"), light_image=Image.open("Image/explorer.png"), size=(25, 25))
 setting_icon = customtkinter.CTkImage(dark_image=Image.open("Image/setting-lines.png"), light_image=Image.open("Image/setting-lines.png"), size=(25, 25))
-# progress_icon = customtkinter.CTkImage(dark_image= Image.open("Image/loading-bar.png"), light_image=Image.open("Image/loading-bar.png"), size=(27, 27))
 
 # --------------------------------------------------// Function \\ --------------------------------------------------
-# Explorer
 def indicate_explorer():
      deactivate()
      explorer_indicate.configure(fg_color="#0033FF")
@@ -192,7 +184,7 @@ def indicate_explorer():
      
      raise_frame(explorer_frame)
 
-# Setting
+
 def indicate_setting():
      deactivate()
      setting_indicate.configure(fg_color="#0033FF")
@@ -204,19 +196,9 @@ def indicate_setting():
      raise_frame(setting_frame)
 
 
-# Progress
-# def indicate_progress():
-#      deactivate()
-#      progress_indicate.configure(fg_color="#0033FF")
-#      progress_icon_button.configure(fg_color="#CCFFFF")
-
-#      if menu_frame.cget("width") > 45:
-#           folding_menu()
-     
-#      raise_frame(progress_frame)
 
 # --------------------------------------------------// Object \\ --------------------------------------------------
-# Explorer
+
 explorer_icon_button = customtkinter.CTkButton(
      menu_frame,
      image=explorer_icon,
@@ -232,6 +214,7 @@ explorer_icon_button = customtkinter.CTkButton(
 )
 explorer_icon_button.place(x=1, y=100)
 
+
 explorer_indicate = customtkinter.CTkLabel(
      menu_frame,
      text=" ",
@@ -241,7 +224,7 @@ explorer_indicate = customtkinter.CTkLabel(
 )
 explorer_indicate.place(x=0, y=100)
 
-# Setting 
+
 setting_icon_button = customtkinter.CTkButton(
      menu_frame,
      image=setting_icon,
@@ -257,6 +240,7 @@ setting_icon_button = customtkinter.CTkButton(
 )
 setting_icon_button.place(x=1, y=150)
 
+
 setting_indicate = customtkinter.CTkLabel(
      menu_frame,
      text=" ",
@@ -266,36 +250,9 @@ setting_indicate = customtkinter.CTkLabel(
 )
 setting_indicate.place(x=0, y=150)
 
-# Progress
-# progress_icon_button = customtkinter.CTkButton(
-#      menu_frame,
-#      image=progress_icon,
-#      width=165,
-#      height=32,
-#      fg_color="lightblue",
-#      hover_color="#CCFFFF",
-#      text=" Progress",
-#      font=("Helvetica", 18),
-#      text_color="black",
-#      anchor="w",
-#      command=indicate_progress
-# )
-# progress_icon_button.place(x=1, y=200)
-
-# progress_indicate = customtkinter.CTkLabel(
-#      menu_frame,
-#      text=" ",
-#      fg_color="lightblue",
-#      height=31,
-#      bg_color="lightblue"
-# )
-# progress_indicate.place(x=0, y=200)
-
-#endregion
 
 raise_frame(explorer_frame)
 
-#region Explorer
 # -------------------------------------------------------------- // Function \\ --------------------------------------------------------------
 
 def file_progress_ui(file_list, process):
@@ -456,26 +413,6 @@ def download():
     download_set = set()
     download_list = []
 
-    # def download_siever(item, parent=download_dir):
-    #     if item["path"] not in download_set:
-    #         download_set.add(item["path"])
-    #         local_path = os.path.normpath(os.path.join(parent, item["name"]))
-    #         file_exist = os.path.exists(local_path)
-    #         if not file_exist or tkinter.messagebox.askyesno(
-    #             title=f'Replace or Skip {item["type"]}',
-    #             message=f'The destination already has a {"folder" if os.path.isfile(local_path) else "file"} named "{item["name"]}".\nDo you wish to replace it? (no will skip it.)',
-    #         ):  # short-circuit logic
-    #             if item["type"] == "file":
-    #                 if file_exist:
-    #                     os.remove(local_path)
-    #                 download_list.append((item["path"], item["size"], local_path))
-    #             else:
-    #                 if file_exist:
-    #                     shutil.rmtree(local_path)
-    #                 os.mkdir(local_path)
-    #                 for child in item.get("children", []):
-    #                     download_siever(child, local_path)
-
     def download_siever(item, parent=download_dir):
         if item["path"] not in download_set:
             download_set.add(item["path"])
@@ -515,40 +452,6 @@ def download():
 
     file_progress_ui(download_list, pro.DownloadManager)
 
-
-# def upload_files():
-#     if not treeview.selection():
-#         return
-#     file_list = tkinter.filedialog.askopenfilenames()
-#     if not file_list:
-#         return
-#     destination = treeview.selection()[0]
-#     if flatten_server_directory[destination]["type"] == "file":
-#         destination = os.path.dirname(destination)
-#     upload_list = []
-#     delete_list = []
-#     for file in file_list:
-#         file_name = os.path.basename(file)
-#         server_path = os.path.normpath(os.path.join(destination, file_name))
-#         file_exist = server_path in flatten_server_directory
-#         if not file_exist or tkinter.messagebox.askyesno(
-#             title=f"Replace or Skip file",
-#             message=f'The destination already has a {flatten_server_directory[server_path]["type"]} named "{file_name}".\nDo you wish to replace it? (no will skip it.)',
-#         ):
-#             if file_exist:
-#                 delete_list.append(server_path)
-#             upload_list.append(
-#                 (os.path.normpath(file), os.path.getsize(file), server_path)
-#             )
-#     try:
-#         for path in delete_list:
-#             management_msgr.send_DRQ(path)
-#         for file in upload_list:
-#             management_msgr.send_WRQ(file[2], file[1])
-#     except (OSError, MessengerError) as e:
-#         tkinter.messagebox.showerror("Error", str(e))
-#         return
-#     file_progress_ui(upload_list, pro.UploadManager)
 
 
 def upload_files():
@@ -596,60 +499,6 @@ def upload_files():
         return
     file_progress_ui(upload_list, pro.UploadManager)
 
-
-# def upload_folder():
-#     if not treeview.selection():
-#         return
-#     folder = tkinter.filedialog.askdirectory()
-#     if not folder:
-#         return
-#     destination = treeview.selection()[0]
-#     if flatten_server_directory[destination]["type"] == "file":
-#         destination = os.path.dirname(destination)
-#     upload_list = []
-#     delete_list = []
-#     make_list = []
-
-#     def upload_siever(root_dir, current_path):
-#         with os.scandir(root_dir) as it:
-#             for entry in it:
-#                 server_path = os.path.join(current_path, entry.name)
-#                 if not entry.is_dir(follow_symlinks=False):
-#                     upload_list.append(
-#                         (
-#                             # python module maker need to agree on the path like tkinter give / os.path give \\ scandir path give / MAKE UP UR MIND!
-#                             os.path.normpath(entry.path),
-#                             entry.stat().st_size,
-#                             server_path,
-#                         )
-#                     )
-#                 else:
-#                     make_list.append(server_path)
-#                     upload_siever(entry.path, server_path)
-
-#     folder_name = os.path.basename(folder)
-#     server_path = os.path.normpath(os.path.join(destination, folder_name))
-#     entry_exist = server_path in flatten_server_directory
-#     if not entry_exist or tkinter.messagebox.askyesno(
-#         title=f"Replace or Skip folder",
-#         message=f'The destination already has a {flatten_server_directory[server_path]["type"]} named "{folder_name}".\nDo you wish to replace it? (no will skip it.)',
-#     ):
-#         if entry_exist:
-#             delete_list.append(server_path)
-#         make_list.append(server_path)
-#         upload_siever(folder, server_path)
-#     try:
-#         for path in delete_list:
-#             management_msgr.send_DRQ(path)
-#         for directory in make_list:
-#             management_msgr.send_FRQ(directory)
-#         for file in upload_list:
-#             management_msgr.send_WRQ(file[2], file[1])
-#     except (OSError, MessengerError) as e:
-#         tkinter.messagebox.showerror("Error", str(e))
-#         return
-
-#     file_progress_ui(upload_list, pro.UploadManager)
 
 
 def upload_folder():
@@ -729,6 +578,7 @@ def flatten_directory():
     _flatten(server_directory)
     return flat_dict
 
+
 def normalize_directory(dir):
     dir["path"] = os.path.normpath(dir["path"])
     if dir["type"] == "folder":
@@ -790,7 +640,7 @@ def update_directory(query=""):
             for child in item.get("children", []):
                 process_directory(child, query, item["path"])
         elif item["type"] == "file":
-            icon_file = find_icon_file(item["name"]) 
+            icon_file = find_image_file(item["name"]) 
             if query in item["name"] and not treeview.exists(item["path"]):
                 treeview.insert(
                     parent,
@@ -807,8 +657,6 @@ def update_directory(query=""):
                 )
 
     process_directory(server_directory, query.lower())
-
-
 
 
 
@@ -966,11 +814,11 @@ file_extension = {
      "Picture": ["jpg", "png", "svg", "gif", "raw"],
      "Code": ["cpp", "py", "css", "html", "js", "cs", "c", "json"], 
 }
-def find_icon_file(filename):
+def find_image_file(filename):
      dot_index = filename.rfind('.')
      
      if dot_index == -1:
-          return indefinite_icon
+          return indefinite_image
 
      extension = filename[dot_index + 1:].lower()
      for key, extensions in file_extension.items():
@@ -982,9 +830,9 @@ def find_icon_file(filename):
                elif key == "Picture":
                     return pictureFile_image
                elif key == "Code":
-                    return coding_icon
+                    return coding_image
      
-     return indefinite_icon
+     return indefinite_image
 
 
 
@@ -1003,29 +851,29 @@ txt_image = ImageTk.PhotoImage(txt_image.resize((16, 16), Image.LANCZOS))
 pictureFile_image = Image.open("Image/picture.png")  
 pictureFile_image = ImageTk.PhotoImage(pictureFile_image.resize((20, 20), Image.LANCZOS))
 
+coding_image = Image.open("Image/coding.png")  
+coding_image = ImageTk.PhotoImage(coding_image.resize((24, 24), Image.LANCZOS))
+
+indefinite_image = Image.open("Image/new-document.png")  
+indefinite_image = ImageTk.PhotoImage(indefinite_image.resize((24, 24), Image.LANCZOS))
+
 recycle_bin_icon = Image.open("Image/recycle-bin.png")  
-recycle_bin_icon = ImageTk.PhotoImage(recycle_bin_icon.resize((22, 22), Image.LANCZOS))
+recycle_bin_icon = customtkinter.CTkImage(recycle_bin_icon.resize((22, 22), Image.LANCZOS))
 
 new_folder_icon = Image.open("Image/new-folder.png")  
-new_folder_icon = ImageTk.PhotoImage(new_folder_icon.resize((24, 24), Image.LANCZOS))
+new_folder_icon = customtkinter.CTkImage(new_folder_icon.resize((24, 24), Image.LANCZOS))
 
 download_file_icon = Image.open("Image/download.png")  
-download_file_icon = ImageTk.PhotoImage(download_file_icon.resize((24, 24), Image.LANCZOS))
+download_file_icon = customtkinter.CTkImage(download_file_icon.resize((24, 24), Image.LANCZOS))
 
 upload_file_icon = Image.open("Image/upload_file.png")  
-upload_file_icon = ImageTk.PhotoImage(upload_file_icon.resize((24, 24), Image.LANCZOS))
+upload_file_icon = customtkinter.CTkImage(upload_file_icon.resize((24, 24), Image.LANCZOS))
 
 upload_folder_icon = Image.open("Image/upload_folder.png")  
-upload_folder_icon = ImageTk.PhotoImage(upload_folder_icon.resize((24, 24), Image.LANCZOS))
-
-coding_icon = Image.open("Image/coding.png")  
-coding_icon = ImageTk.PhotoImage(coding_icon.resize((24, 24), Image.LANCZOS))
-
-indefinite_icon = Image.open("Image/new-document.png")  
-indefinite_icon = ImageTk.PhotoImage(indefinite_icon.resize((24, 24), Image.LANCZOS))
+upload_folder_icon = customtkinter.CTkImage(upload_folder_icon.resize((24, 24), Image.LANCZOS))
 
 search_icon = Image.open("Image/search.png")  
-search_icon = ImageTk.PhotoImage(search_icon.resize((24, 24), Image.LANCZOS))
+search_icon = customtkinter.CTkImage(search_icon.resize((24, 24), Image.LANCZOS))
 
 # ---------------------------------------------- // Frame \\ -----------------------------------------------------
 style = ttk.Style(explorer_frame)
