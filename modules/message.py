@@ -23,11 +23,11 @@ def disconnect_all():
         messengers = []
 
 
-class messengerError(Exception):
+class MessengerError(Exception):
     pass
 
 
-class messenger:
+class Messenger:
     def __init__(self, host, port):
         self.sock = socket(AF_INET, SOCK_STREAM)
         self.sock.settimeout(10)
@@ -39,7 +39,7 @@ class messenger:
     def _raise_err(self):
         err_len = struct.unpack(">B", recv_all(self.sock, 1))[0]
         err_msg = recv_all(self.sock, err_len).decode(FORMAT)
-        raise messengerError(err_msg)
+        raise MessengerError(err_msg)
 
     def send_RRQ(self, file_path):
         """send Read request"""
