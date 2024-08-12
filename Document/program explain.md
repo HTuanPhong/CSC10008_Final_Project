@@ -128,7 +128,7 @@ Quy trình upload folder là sự kết hợp giữa quy trình tạo folder và
 
 ![Code structure](./diagrams/Code%20structure.svg)
 
-Để thực hiện việc giao tiếp giữa Client và Server, Client sẽ có modules là Message.py bao gồm những hàm và thủ tục giúp ứng dụng bên Client đóng gói những yêu cầu, dữ liệu cần gửi cũng như là giúp nhận dạng thông điệp phản hồi từ Server. Những thông điệp từ Server giúp báo hiệu là yêu cầu đã được xử lí hay là đã xảy ra lỗi. Đối với Server sẽ có modules là request.py giúp xử lí các yêu cầu gửi từ client. Việc xử lí các yêu cầu bao gồm việc kiểm lỗi, gửi lại thông điệp phản hồi cho Client.
+Để thực hiện việc giao tiếp giữa Client và Server, Client có modules Message.py gồm những hàm và thủ tục giúp ứng dụng bên Client đóng gói những yêu cầu, dữ liệu cần gửi cũng như giúp nhận dạng thông điệp phản hồi từ Server. Những thông điệp từ Server giúp báo hiệu yêu cầu đã được xử lí hay đã xảy ra lỗi. Đối với Server có modules là request.py giúp xử lí các yêu cầu gửi từ client. Việc xử lí các yêu cầu bao gồm việc kiểm lỗi, gửi lại thông điệp phản hồi cho Client.
 
 Giao thức được định nghĩa ở trên sẽ được lập trình vào Message.py và Request.py .
 
