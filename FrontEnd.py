@@ -311,7 +311,7 @@ def file_progress_ui(file_list, process):
     frame.grid(row=0, column=0, sticky="nwes")
     download_popup.grab_set()
     download_popup.focus_set()
-    download_popup.title("Download process")
+    download_popup.title("Process")
 
     btn_frame = ttk.Labelframe(download_popup, text="Button for all files:", style="White.TLabelframe")
     btn_frame.grid(row=0, column=0, sticky="ew")
