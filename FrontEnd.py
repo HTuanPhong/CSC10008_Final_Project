@@ -340,12 +340,9 @@ def file_progress_ui(file_list, process):
     canvas.grid_rowconfigure(0, weight=1)
     canvas.grid_columnconfigure(0, weight=1)
     scrollable_frame.grid_columnconfigure(0, weight=1)
-    stop_update = threading.Event()
     ui_lock = threading.Lock()
 
     def update_progress(index, bytes):
-        if stop_update.is_set():
-            return
         with ui_lock:
             if index not in ui_list:
                 return
@@ -390,13 +387,14 @@ def file_progress_ui(file_list, process):
                         manager.resume_file(index)
                         ui["pause"].configure(text="Pause")
                 pause_all_button.configure(text="Pause")
+    def cancel_all_thread():
+        manager.stop()
+        canvas.unbind_all("<MouseWheel>")
+        download_popup.destroy()
 
     def cancel_all():
-        stop_update.set()
-        with ui_lock:
-            manager.stop()
-            canvas.unbind_all("<MouseWheel>")
-            download_popup.destroy()
+        t = threading.Thread(target=cancel_all_thread, daemon=True)
+        t.start()
 
     ui_list = {}
     for i, file in enumerate(file_list):
@@ -458,30 +456,99 @@ def download():
     download_set = set()
     download_list = []
 
+    # def download_siever(item, parent=download_dir):
+    #     if item["path"] not in download_set:
+    #         download_set.add(item["path"])
+    #         local_path = os.path.normpath(os.path.join(parent, item["name"]))
+    #         file_exist = os.path.exists(local_path)
+    #         if not file_exist or tkinter.messagebox.askyesno(
+    #             title=f'Replace or Skip {item["type"]}',
+    #             message=f'The destination already has a {"folder" if os.path.isfile(local_path) else "file"} named "{item["name"]}".\nDo you wish to replace it? (no will skip it.)',
+    #         ):  # short-circuit logic
+    #             if item["type"] == "file":
+    #                 if file_exist:
+    #                     os.remove(local_path)
+    #                 download_list.append((item["path"], item["size"], local_path))
+    #             else:
+    #                 if file_exist:
+    #                     shutil.rmtree(local_path)
+    #                 os.mkdir(local_path)
+    #                 for child in item.get("children", []):
+    #                     download_siever(child, local_path)
+
     def download_siever(item, parent=download_dir):
         if item["path"] not in download_set:
             download_set.add(item["path"])
             local_path = os.path.normpath(os.path.join(parent, item["name"]))
-            file_exist = os.path.exists(local_path)
-            if not file_exist or tkinter.messagebox.askyesno(
-                title=f'Replace or Skip {item["type"]}',
-                message=f'The destination already has a {"folder" if os.path.isfile(local_path) else "file"} named "{item["name"]}".\nDo you wish to replace it? (no will skip it.)',
-            ):  # short-circuit logic
-                if item["type"] == "file":
-                    if file_exist:
+            if os.path.exists(local_path):
+                unique_path = get_unique_filepath(local_path, os.path.exists)
+                prompt = tkinter.messagebox.askyesnocancel(
+                    title=f"Rename, Replace or Skip ?",
+                    message=f'The destination already has a {"folder" if os.path.isfile(local_path) else "file"} named "{item["name"]}".\nDo you wish to rename it to "{os.path.basename(unique_path)}"?\n(no will replace it, cancel will skip this download)',
+                )
+                if prompt:
+                    if item["type"] == "file":
+                        download_list.append((item["path"], item["size"], unique_path))
+                    else:
+                        os.mkdir(unique_path)
+                        for child in item.get("children", []):
+                            download_siever(child, unique_path)
+                elif prompt == False:
+                    if item["type"] == "file":
                         os.remove(local_path)
+                        download_list.append((item["path"], item["size"], local_path))
+                    else:
+                        shutil.rmtree(local_path)
+                        os.mkdir(local_path)
+                        for child in item.get("children", []):
+                            download_siever(child, local_path)
+            else:
+                if item["type"] == "file":
                     download_list.append((item["path"], item["size"], local_path))
                 else:
-                    if file_exist:
-                        shutil.rmtree(local_path)
                     os.mkdir(local_path)
                     for child in item.get("children", []):
                         download_siever(child, local_path)
-
+    
     for path in treeview.selection():
         download_siever(flatten_server_directory[path])
 
     file_progress_ui(download_list, pro.DownloadManager)
+
+
+# def upload_files():
+#     if not treeview.selection():
+#         return
+#     file_list = tkinter.filedialog.askopenfilenames()
+#     if not file_list:
+#         return
+#     destination = treeview.selection()[0]
+#     if flatten_server_directory[destination]["type"] == "file":
+#         destination = os.path.dirname(destination)
+#     upload_list = []
+#     delete_list = []
+#     for file in file_list:
+#         file_name = os.path.basename(file)
+#         server_path = os.path.normpath(os.path.join(destination, file_name))
+#         file_exist = server_path in flatten_server_directory
+#         if not file_exist or tkinter.messagebox.askyesno(
+#             title=f"Replace or Skip file",
+#             message=f'The destination already has a {flatten_server_directory[server_path]["type"]} named "{file_name}".\nDo you wish to replace it? (no will skip it.)',
+#         ):
+#             if file_exist:
+#                 delete_list.append(server_path)
+#             upload_list.append(
+#                 (os.path.normpath(file), os.path.getsize(file), server_path)
+#             )
+#     try:
+#         for path in delete_list:
+#             management_msgr.send_DRQ(path)
+#         for file in upload_list:
+#             management_msgr.send_WRQ(file[2], file[1])
+#     except (OSError, MessengerError) as e:
+#         tkinter.messagebox.showerror("Error", str(e))
+#         return
+#     file_progress_ui(upload_list, pro.UploadManager)
 
 
 def upload_files():
@@ -498,13 +565,24 @@ def upload_files():
     for file in file_list:
         file_name = os.path.basename(file)
         server_path = os.path.normpath(os.path.join(destination, file_name))
-        file_exist = server_path in flatten_server_directory
-        if not file_exist or tkinter.messagebox.askyesno(
-            title=f"Replace or Skip file",
-            message=f'The destination already has a {flatten_server_directory[server_path]["type"]} named "{file_name}".\nDo you wish to replace it? (no will skip it.)',
-        ):
-            if file_exist:
+        if server_path in flatten_server_directory:
+            unique_path = get_unique_filepath(
+                server_path, lambda path: path in flatten_server_directory
+            )
+            prompt = tkinter.messagebox.askyesnocancel(
+                title=f"Rename, Replace or Skip ?",
+                message=f'The destination already has a {flatten_server_directory[server_path]["type"]} named "{file_name}".\nDo you wish to rename it to "{os.path.basename(unique_path)}"?\n(no will replace it, cancel will skip this download)',
+            )
+            if prompt:
+                upload_list.append(
+                    (os.path.normpath(file), os.path.getsize(file), unique_path)
+                )
+            elif prompt == False:
                 delete_list.append(server_path)
+                upload_list.append(
+                    (os.path.normpath(file), os.path.getsize(file), server_path)
+                )
+        else:
             upload_list.append(
                 (os.path.normpath(file), os.path.getsize(file), server_path)
             )
@@ -517,6 +595,61 @@ def upload_files():
         tkinter.messagebox.showerror("Error", str(e))
         return
     file_progress_ui(upload_list, pro.UploadManager)
+
+
+# def upload_folder():
+#     if not treeview.selection():
+#         return
+#     folder = tkinter.filedialog.askdirectory()
+#     if not folder:
+#         return
+#     destination = treeview.selection()[0]
+#     if flatten_server_directory[destination]["type"] == "file":
+#         destination = os.path.dirname(destination)
+#     upload_list = []
+#     delete_list = []
+#     make_list = []
+
+#     def upload_siever(root_dir, current_path):
+#         with os.scandir(root_dir) as it:
+#             for entry in it:
+#                 server_path = os.path.join(current_path, entry.name)
+#                 if not entry.is_dir(follow_symlinks=False):
+#                     upload_list.append(
+#                         (
+#                             # python module maker need to agree on the path like tkinter give / os.path give \\ scandir path give / MAKE UP UR MIND!
+#                             os.path.normpath(entry.path),
+#                             entry.stat().st_size,
+#                             server_path,
+#                         )
+#                     )
+#                 else:
+#                     make_list.append(server_path)
+#                     upload_siever(entry.path, server_path)
+
+#     folder_name = os.path.basename(folder)
+#     server_path = os.path.normpath(os.path.join(destination, folder_name))
+#     entry_exist = server_path in flatten_server_directory
+#     if not entry_exist or tkinter.messagebox.askyesno(
+#         title=f"Replace or Skip folder",
+#         message=f'The destination already has a {flatten_server_directory[server_path]["type"]} named "{folder_name}".\nDo you wish to replace it? (no will skip it.)',
+#     ):
+#         if entry_exist:
+#             delete_list.append(server_path)
+#         make_list.append(server_path)
+#         upload_siever(folder, server_path)
+#     try:
+#         for path in delete_list:
+#             management_msgr.send_DRQ(path)
+#         for directory in make_list:
+#             management_msgr.send_FRQ(directory)
+#         for file in upload_list:
+#             management_msgr.send_WRQ(file[2], file[1])
+#     except (OSError, MessengerError) as e:
+#         tkinter.messagebox.showerror("Error", str(e))
+#         return
+
+#     file_progress_ui(upload_list, pro.UploadManager)
 
 
 def upload_folder():
@@ -539,7 +672,6 @@ def upload_folder():
                 if not entry.is_dir(follow_symlinks=False):
                     upload_list.append(
                         (
-                            # python module maker need to agree on the path like tkinter give / os.path give \\ scandir path give / MAKE UP UR MIND!
                             os.path.normpath(entry.path),
                             entry.stat().st_size,
                             server_path,
@@ -551,15 +683,25 @@ def upload_folder():
 
     folder_name = os.path.basename(folder)
     server_path = os.path.normpath(os.path.join(destination, folder_name))
-    entry_exist = server_path in flatten_server_directory
-    if not entry_exist or tkinter.messagebox.askyesno(
-        title=f"Replace or Skip folder",
-        message=f'The destination already has a {flatten_server_directory[server_path]["type"]} named "{folder_name}".\nDo you wish to replace it? (no will skip it.)',
-    ):
-        if entry_exist:
+    if server_path in flatten_server_directory:
+        unique_path = get_unique_filepath(
+            server_path, lambda path: path in flatten_server_directory
+        )
+        prompt = tkinter.messagebox.askyesnocancel(
+            title=f"Rename, Replace or Skip ?",
+            message=f'The destination already has a {flatten_server_directory[server_path]["type"]} named "{folder_name}".\nDo you wish to rename it to "{os.path.basename(unique_path)}"?\n(no will replace it, cancel will skip this download)',
+        )
+        if prompt:
+            make_list.append(unique_path)
+            upload_siever(folder, unique_path)
+        elif prompt == False:
             delete_list.append(server_path)
+            make_list.append(server_path)
+            upload_siever(folder, server_path)
+    else:
         make_list.append(server_path)
         upload_siever(folder, server_path)
+
     try:
         for path in delete_list:
             management_msgr.send_DRQ(path)
@@ -572,6 +714,8 @@ def upload_folder():
         return
 
     file_progress_ui(upload_list, pro.UploadManager)
+
+
 
 def flatten_directory():
     flat_dict = {}
