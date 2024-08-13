@@ -11,24 +11,30 @@ A simple school project about file management program over socket. Using TCP len
 ## Project requirements
 
 - GUI
-- Thread to split file ?!?!?
+- Thread to split file
 - Download/upload
 
 ## Run
-Python 3.5 or above is required.
+Python 3.12 or above is required.
+
+Installation:
+
+```
+pip install -r requirements.txt
+```
 
 Start server:
 
 ```
-py server.py
+python server.py
 ```
 
 Start client:
 
 ```
-py client.py
+python client.py
 ```
 
 ## Quick start
 
-...
+Thank you customtkinter for ruining this.
