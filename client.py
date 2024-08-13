@@ -258,6 +258,10 @@ def upload_files():
         tk.messagebox.showerror("Error", str(e))
         return
     file_progress_ui(upload_list, pro.UploadManager)
+    for _, _, path in upload_list:
+        temp = path + ".uploading"
+        if temp in flatten_server_directory:
+            management_msgr.send_DRQ(temp)
 
 
 def upload_folder():
@@ -322,6 +326,10 @@ def upload_folder():
         return
 
     file_progress_ui(upload_list, pro.UploadManager)
+    for _, _, path in upload_list:
+        temp = path + ".uploading"
+        if temp in flatten_server_directory:
+            management_msgr.send_DRQ(temp)
 
 
 def flatten_directory():
