@@ -48,7 +48,7 @@ SCROLL_FRAME_HEIGHT = 500
 window = customtkinter.CTk()
 window.title("File Transfer")
 window.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
-window.resizable(False, False)
+window.minsize(940, 500)
 bold_font = customtkinter.CTkFont(weight="bold", size=14)
 
 #============================================================={{ MENU }}===========================================================
@@ -68,7 +68,6 @@ def update_menu_frame(width: int):
      menu_frame.configure(width = width)
      explorer_icon_button.configure(width = width - 2)
      setting_icon_button.configure(width = width - 2)
-    #  progress_icon_button.configure(width = width - 2)
 
 def extending_amination():
      startFrame = time.time()
@@ -140,8 +139,6 @@ menu_frame.place(relheight = 1.0, x=0, y=0)
 content_frame = customtkinter.CTkFrame(
      window,
      fg_color="white",
-     height=WINDOW_HEIGHT,
-     width=WINDOW_WIDTH-MENU_COLLAPSED_WIDTH
 )
 content_frame.place(relwidth=1.0, relheight=1.0, x=MENU_COLLAPSED_WIDTH, y=0)
 
@@ -206,7 +203,7 @@ explorer_icon_button = customtkinter.CTkButton(
      height=32,
      fg_color="lightblue",
      hover_color="#CCFFFF",
-     text=" Upload",
+     text=" Explorer",
      font=("Helvetica", 18),
      text_color="black",
      anchor="w",
@@ -218,7 +215,7 @@ explorer_icon_button.place(x=1, y=100)
 explorer_indicate = customtkinter.CTkLabel(
      menu_frame,
      text=" ",
-     fg_color="#0033FF",
+     fg_color="lightblue",
      height=31,
      bg_color="lightblue"
 )
@@ -244,14 +241,14 @@ setting_icon_button.place(x=1, y=150)
 setting_indicate = customtkinter.CTkLabel(
      menu_frame,
      text=" ",
-     fg_color="lightblue",
+     fg_color="#0033FF",
      height=31,
      bg_color="lightblue"
 )
 setting_indicate.place(x=0, y=150)
 
 
-raise_frame(explorer_frame)
+raise_frame(setting_frame)
 
 # -------------------------------------------------------------- // Function \\ --------------------------------------------------------------
 
@@ -498,6 +495,10 @@ def upload_files():
         tkinter.messagebox.showerror("Error", str(e))
         return
     file_progress_ui(upload_list, pro.UploadManager)
+    for _, _, path in upload_list:
+        temp = path + ".uploading"
+        if temp in flatten_server_directory:
+            management_msgr.send_DRQ(temp)
 
 
 
@@ -563,6 +564,10 @@ def upload_folder():
         return
 
     file_progress_ui(upload_list, pro.UploadManager)
+    for _, _, path in upload_list:
+        temp = path + ".uploading"
+        if temp in flatten_server_directory:
+            management_msgr.send_DRQ(temp)
 
 
 
@@ -698,6 +703,8 @@ def connect():
     set_ip_server_entry.configure(state="disabled")
     set_port_entry.configure(state="disabled")
     search_entry.configure(state="normal")
+    change_ip_sever()
+    change_port_sever()
 
 
 
@@ -880,11 +887,10 @@ style = ttk.Style(explorer_frame)
 
 main_frame = customtkinter.CTkFrame(explorer_frame, fg_color="white")
 tool_frame = customtkinter.CTkFrame(main_frame, fg_color="white", height=75)
-dir_frame = customtkinter.CTkFrame(main_frame, width=1000, height=600, fg_color="white")
-dir_frame.place(x=1, y=75)
-tool_frame.place(x=1, y=0)
+dir_frame = customtkinter.CTkFrame(main_frame, fg_color="white")
 main_frame.grid(row=0, column=0, sticky="nwes")
 tool_frame.grid(row=0, column=0, stick="nwes")
+dir_frame.grid(row=1, column=0, sticky="nwes")
 
 # Popup
 popup = Menu(explorer_frame, tearoff=0)
@@ -896,20 +902,19 @@ popup.add_command(label="Upload folder", command=upload_folder)
 
 
 # ---------------------------------------------- // Object \\ -----------------------------------------------------
-customtkinter.CTkLabel(tool_frame, text="Server's Directory", font=customtkinter.CTkFont(weight="bold", size=18)).place(x=3, y=3)
+# customtkinter.CTkLabel(tool_frame, text="Server's Directory", font=customtkinter.CTkFont(weight="bold", size=18)).grid(row=0, column=0, stick="we")
 
 """ FUNCTION BUTTONS """
 delete_button = customtkinter.CTkButton(
-    tool_frame, text="", 
+    tool_frame, text="Delete", 
     state="normal", 
     image=recycle_bin_icon,
     fg_color="white",
-    font=("", 25),
+    text_color="black",
     width=25,
     hover_color="#CCFFFF",
     command=delete
 )
-delete_button.place(x=280, y=42)
 
 
 folder_button = customtkinter.CTkButton(
@@ -923,47 +928,46 @@ folder_button = customtkinter.CTkButton(
     hover_color="#CCFFFF",
     command=folder
 )
-folder_button.place(x=20, y=42)
 
 download_button = customtkinter.CTkButton(
     tool_frame, 
-    text="", 
+    text="Download", 
     width=25,
     state="normal", 
+    text_color="black",
     fg_color="white",
     image=download_file_icon,
     hover_color="#CCFFFF",
     command=download
 )
-download_button.place(x=130, y=42)
 
 upload_button = customtkinter.CTkButton(
     tool_frame, 
-    text="", 
+    text="Upload file", 
     fg_color="white",
+    text_color="black",
     image=upload_file_icon,
     width=25,
     state="normal", 
     hover_color="#CCFFFF",
     command=upload_files
 )
-upload_button.place(x=180, y=42)
 
 upload_folder_button = customtkinter.CTkButton(
     tool_frame, 
-    text="", 
+    text="Upload folder", 
     fg_color="white",
+    text_color="black",
     image=upload_folder_icon,
     width=25,
     state="normal", 
     hover_color="#CCFFFF",
     command=upload_folder
 )
-upload_folder_button.place(x=230, y=42)
 
 
 """ SEARCH """
-customtkinter.CTkLabel(tool_frame, image=search_icon, text="").place(x=610, y=42)
+search_icon = customtkinter.CTkLabel(tool_frame, image=search_icon, text="")
 search_var = customtkinter.StringVar()
 search_var.trace("w", search_dir)
 search_entry = customtkinter.CTkEntry(
@@ -975,8 +979,14 @@ search_entry = customtkinter.CTkEntry(
      corner_radius=9,
      font=("", 14)
 )
-search_entry.place(x=640, y=42)
 
+delete_button.grid(row=0, column=0, padx=4, pady=4, sticky="w")
+folder_button.grid(row=0, column=1, padx=4, pady=4, sticky="w")
+download_button.grid(row=0, column=2, padx=4, pady=4, sticky="w")
+upload_button.grid(row=0, column=3, padx=4, pady=4, sticky="w")
+upload_folder_button.grid(row=0, column=4, padx=4, pady=4, sticky="w")
+search_icon.grid(row=0, column=5, padx=4, pady=4, sticky="e")
+search_entry.grid(row=0, column=6, padx=(0,50), pady=4, sticky="e")
 """ TREE STYLE CONFIG """
 style = ttk.Style()
 style.configure("Treeview", font=("", 12), rowheight=29)
@@ -1009,14 +1019,13 @@ treeview.tag_configure("highlight", background="#CCFFFF")
 
 
 treeview.grid(row=0, column=0, sticky="nsew")
-vsb.grid(row=0, column=1, sticky="ns")
+vsb.grid(row=0, column=1, padx=(0,57), sticky="ns")
 
 explorer_frame.grid_columnconfigure(0, weight=1)
 explorer_frame.grid_rowconfigure(0, weight=1)
 main_frame.grid_columnconfigure(0, weight=1)
 main_frame.grid_rowconfigure(1, weight=1)
-# search_frame.grid_columnconfigure(1, weight=1)
-tool_frame.grid_columnconfigure(1, weight=1)
+tool_frame.grid_columnconfigure(5, weight=1)
 dir_frame.grid_rowconfigure(0, weight=1)
 dir_frame.grid_columnconfigure(0, weight=1)
 
@@ -1121,8 +1130,6 @@ disconnect_button = customtkinter.CTkButton(
     command=disconnect,
 )
 disconnect_button.place(x=470, y=400)
-
-connect()
 
 window.mainloop()
 #endregion
