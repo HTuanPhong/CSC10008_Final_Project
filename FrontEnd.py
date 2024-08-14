@@ -218,7 +218,7 @@ explorer_icon_button.place(x=1, y=100)
 explorer_indicate = customtkinter.CTkLabel(
      menu_frame,
      text=" ",
-     fg_color="#0033FF",
+     fg_color="lightblue",
      height=31,
      bg_color="lightblue"
 )
@@ -244,14 +244,14 @@ setting_icon_button.place(x=1, y=150)
 setting_indicate = customtkinter.CTkLabel(
      menu_frame,
      text=" ",
-     fg_color="lightblue",
+     fg_color="#0033FF",
      height=31,
      bg_color="lightblue"
 )
 setting_indicate.place(x=0, y=150)
 
 
-raise_frame(explorer_frame)
+raise_frame(setting_frame)
 
 # -------------------------------------------------------------- // Function \\ --------------------------------------------------------------
 
@@ -1122,7 +1122,7 @@ disconnect_button = customtkinter.CTkButton(
 )
 disconnect_button.place(x=470, y=400)
 
-connect()
+
 
 window.mainloop()
 #endregion
