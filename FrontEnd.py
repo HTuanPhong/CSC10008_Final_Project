@@ -1131,7 +1131,6 @@ disconnect_button = customtkinter.CTkButton(
 )
 disconnect_button.place(x=470, y=400)
 
-connect()
 
 window.mainloop()
 #endregion
