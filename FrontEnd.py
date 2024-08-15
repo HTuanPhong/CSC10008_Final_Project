@@ -26,7 +26,7 @@ management_msgr = None
 hostname = socket.gethostname()
 hostip = socket.gethostbyname(hostname)
 
-#============================================================={{ configure WINDOW }}===========================================================
+# ============================================================={{ configure WINDOW }}===========================================================
 # Set mode and default theme
 customtkinter.set_appearance_mode("Light")
 customtkinter.set_default_color_theme("blue")
@@ -51,94 +51,103 @@ window.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
 window.minsize(940, 500)
 bold_font = customtkinter.CTkFont(weight="bold", size=14)
 
-#============================================================={{ MENU }}===========================================================
-#region Expand/Collapse Function
+# ============================================================={{ MENU }}===========================================================
+# region Expand/Collapse Function
 # --------------------------------------------------// Image - Icon \\ --------------------------------------------------
-toggle_icon = customtkinter.CTkImage(dark_image=Image.open("Image/menu.png"), light_image=Image.open("Image/menu.png"), size=(20, 20))
-close_icon = customtkinter.CTkImage(dark_image=Image.open("Image/close.png"), light_image=Image.open("Image/close.png"), size=(18, 18))
+toggle_icon = customtkinter.CTkImage(
+    dark_image=Image.open("Image/menu.png"),
+    light_image=Image.open("Image/menu.png"),
+    size=(20, 20),
+)
+close_icon = customtkinter.CTkImage(
+    dark_image=Image.open("Image/close.png"),
+    light_image=Image.open("Image/close.png"),
+    size=(18, 18),
+)
 
 # --------------------------------------------------// Function \\ --------------------------------------------------
-ANIMATION_DELAY = 8 #ms
+ANIMATION_DELAY = 8  # ms
+
+
 def update_content_frame(menu_width):
-     content_width = WINDOW_WIDTH - menu_width
-     content_frame.configure(width=content_width)
-     content_frame.place(relwidth=1.0, relheight=1.0, x=menu_width, y=0)
+    content_width = WINDOW_WIDTH - menu_width
+    content_frame.configure(width=content_width)
+    content_frame.place(relwidth=1.0, relheight=1.0, x=menu_width, y=0)
+
 
 def update_menu_frame(width: int):
-     menu_frame.configure(width = width)
-     explorer_icon_button.configure(width = width - 2)
-     setting_icon_button.configure(width = width - 2)
+    menu_frame.configure(width=width)
+    explorer_icon_button.configure(width=width - 2)
+    setting_icon_button.configure(width=width - 2)
+
 
 def extending_amination():
-     startFrame = time.time()
-     current_width = menu_frame.cget("width")
-     if current_width < MENU_EXPANDED_WIDTH:
-          if current_width < (MENU_EXPANDED_WIDTH - DELTA_WIDTH):
-               current_width += DELTA_WIDTH
-          else:
-               current_width = MENU_EXPANDED_WIDTH
-          update_menu_frame(current_width)
-          update_content_frame(current_width)
-          if not is_folding:
-               currentTime = currentTime = int((time.time() - startFrame) * 1000)
-               window.after(
-                    ms = max(8 - currentTime, 0),
-                    func=extending_amination
-               )
+    startFrame = time.time()
+    current_width = menu_frame.cget("width")
+    if current_width < MENU_EXPANDED_WIDTH:
+        if current_width < (MENU_EXPANDED_WIDTH - DELTA_WIDTH):
+            current_width += DELTA_WIDTH
+        else:
+            current_width = MENU_EXPANDED_WIDTH
+        update_menu_frame(current_width)
+        update_content_frame(current_width)
+        if not is_folding:
+            currentTime = currentTime = int((time.time() - startFrame) * 1000)
+            window.after(ms=max(8 - currentTime, 0), func=extending_amination)
+
 
 def folding_amination():
-     startFrame = time.time()
-     current_width = menu_frame.cget("width")
-     if current_width > MENU_COLLAPSED_WIDTH:
-          if current_width > (MENU_COLLAPSED_WIDTH + DELTA_WIDTH):
-               current_width -= DELTA_WIDTH
-          else:
-               current_width = MENU_COLLAPSED_WIDTH
-          update_menu_frame(current_width)
-          update_content_frame(current_width)
-          if is_folding:
-               currentTime = int((time.time() - startFrame) * 1000)
-               window.after(
-                    ms = max(8 - currentTime, 0), 
-                    func=folding_amination
-               )
+    startFrame = time.time()
+    current_width = menu_frame.cget("width")
+    if current_width > MENU_COLLAPSED_WIDTH:
+        if current_width > (MENU_COLLAPSED_WIDTH + DELTA_WIDTH):
+            current_width -= DELTA_WIDTH
+        else:
+            current_width = MENU_COLLAPSED_WIDTH
+        update_menu_frame(current_width)
+        update_content_frame(current_width)
+        if is_folding:
+            currentTime = int((time.time() - startFrame) * 1000)
+            window.after(ms=max(8 - currentTime, 0), func=folding_amination)
+
 
 def extending_menu():
-     global is_folding
-     is_folding = False
-     extending_amination()
-     toggle_button.configure(image=close_icon)
-     toggle_button.configure(command=folding_menu)
+    global is_folding
+    is_folding = False
+    extending_amination()
+    toggle_button.configure(image=close_icon)
+    toggle_button.configure(command=folding_menu)
+
 
 def folding_menu():
-     global is_folding
-     is_folding = True
-     folding_amination()
-     toggle_button.configure(image=toggle_icon)
-     toggle_button.configure(command=extending_menu)
+    global is_folding
+    is_folding = True
+    folding_amination()
+    toggle_button.configure(image=toggle_icon)
+    toggle_button.configure(command=extending_menu)
+
 
 def deactivate():
-     explorer_indicate.configure(fg_color="lightblue")
-     setting_indicate.configure(fg_color="lightblue")
+    explorer_indicate.configure(fg_color="lightblue")
+    setting_indicate.configure(fg_color="lightblue")
 
-     explorer_icon_button.configure(fg_color="lightblue")
-     setting_icon_button.configure(fg_color="lightblue")
+    explorer_icon_button.configure(fg_color="lightblue")
+    setting_icon_button.configure(fg_color="lightblue")
+
 
 def raise_frame(frame):
     frame.tkraise()
 
+
 # --------------------------------------------------// Frame \\ --------------------------------------------------
 menu_frame = customtkinter.CTkFrame(
-     window,
-     height=WINDOW_HEIGHT,
-     width=MENU_COLLAPSED_WIDTH,
-     fg_color="lightblue"
+    window, height=WINDOW_HEIGHT, width=MENU_COLLAPSED_WIDTH, fg_color="lightblue"
 )
-menu_frame.place(relheight = 1.0, x=0, y=0)
+menu_frame.place(relheight=1.0, x=0, y=0)
 
 content_frame = customtkinter.CTkFrame(
-     window,
-     fg_color="white",
+    window,
+    fg_color="white",
 )
 content_frame.place(relwidth=1.0, relheight=1.0, x=MENU_COLLAPSED_WIDTH, y=0)
 
@@ -152,98 +161,97 @@ setting_frame.place(relwidth=1.0, relheight=1.0)
 # --------------------------------------------------// Object \\ --------------------------------------------------
 is_folding = False
 toggle_button = customtkinter.CTkButton(
-     menu_frame,
-     image=toggle_icon,
-     width=10,
-     fg_color="lightblue",
-     hover_color="#CCFFFF",
-     text="",
-     command=extending_menu
+    menu_frame,
+    image=toggle_icon,
+    width=10,
+    fg_color="lightblue",
+    hover_color="#CCFFFF",
+    text="",
+    command=extending_menu,
 )
 toggle_button.place(x=5, y=10)
 
-#endregion
-
+# endregion
 
 
 # --------------------------------------------------// Image - Icon \\ --------------------------------------------------
-explorer_icon = customtkinter.CTkImage(dark_image=Image.open("Image/explorer.png"), light_image=Image.open("Image/explorer.png"), size=(25, 25))
-setting_icon = customtkinter.CTkImage(dark_image=Image.open("Image/setting-lines.png"), light_image=Image.open("Image/setting-lines.png"), size=(25, 25))
+explorer_icon = customtkinter.CTkImage(
+    dark_image=Image.open("Image/explorer.png"),
+    light_image=Image.open("Image/explorer.png"),
+    size=(25, 25),
+)
+setting_icon = customtkinter.CTkImage(
+    dark_image=Image.open("Image/setting-lines.png"),
+    light_image=Image.open("Image/setting-lines.png"),
+    size=(25, 25),
+)
+
 
 # --------------------------------------------------// Function \\ --------------------------------------------------
 def indicate_explorer():
-     deactivate()
-     explorer_indicate.configure(fg_color="#0033FF")
-     explorer_icon_button.configure(fg_color="#CCFFFF")
+    deactivate()
+    explorer_indicate.configure(fg_color="#0033FF")
+    explorer_icon_button.configure(fg_color="#CCFFFF")
 
-     if menu_frame.cget("width") > 45:
-          folding_menu()
-     
-     raise_frame(explorer_frame)
+    if menu_frame.cget("width") > 45:
+        folding_menu()
+
+    raise_frame(explorer_frame)
 
 
 def indicate_setting():
-     deactivate()
-     setting_indicate.configure(fg_color="#0033FF")
-     setting_icon_button.configure(fg_color="#CCFFFF")
+    deactivate()
+    setting_indicate.configure(fg_color="#0033FF")
+    setting_icon_button.configure(fg_color="#CCFFFF")
 
-     if menu_frame.cget("width") > 45:
-          folding_menu()
-     
-     raise_frame(setting_frame)
+    if menu_frame.cget("width") > 45:
+        folding_menu()
 
+    raise_frame(setting_frame)
 
 
 # --------------------------------------------------// Object \\ --------------------------------------------------
 
 explorer_icon_button = customtkinter.CTkButton(
-     menu_frame,
-     image=explorer_icon,
-     width=165,
-     height=32,
-     fg_color="lightblue",
-     hover_color="#CCFFFF",
-     text=" Explorer",
-     font=("Helvetica", 18),
-     text_color="black",
-     anchor="w",
-     command=indicate_explorer
+    menu_frame,
+    image=explorer_icon,
+    width=165,
+    height=32,
+    fg_color="lightblue",
+    hover_color="#CCFFFF",
+    text=" Explorer",
+    font=("Helvetica", 18),
+    text_color="black",
+    anchor="w",
+    command=indicate_explorer,
 )
 explorer_icon_button.place(x=1, y=100)
 
 
 explorer_indicate = customtkinter.CTkLabel(
-     menu_frame,
-     text=" ",
-     fg_color="lightblue",
-     height=31,
-     bg_color="lightblue"
+    menu_frame, text=" ", fg_color="lightblue", height=31, bg_color="lightblue"
 )
 explorer_indicate.place(x=0, y=100)
 
 
 setting_icon_button = customtkinter.CTkButton(
-     menu_frame,
-     image=setting_icon,
-     width=165,
-     height=32,
-     fg_color="lightblue",
-     hover_color="#CCFFFF",
-     text=" Setting",
-     font=("Helvetica", 18),
-     text_color="black",
-     anchor="w",
-     command=indicate_setting
+    menu_frame,
+    image=setting_icon,
+    width=165,
+    height=32,
+    fg_color="lightblue",
+    hover_color="#CCFFFF",
+    text=" Setting",
+    font=("Helvetica", 18),
+    text_color="black",
+    anchor="w",
+    command=indicate_setting,
 )
 setting_icon_button.place(x=1, y=150)
 
 
 setting_indicate = customtkinter.CTkLabel(
-     menu_frame,
-     text=" ",
-     fg_color="#0033FF",
-     height=31,
-     bg_color="lightblue"
+    menu_frame, text=" ", fg_color="#0033FF", height=31, bg_color="lightblue"
 )
 setting_indicate.place(x=0, y=150)
 
@@ -252,8 +260,9 @@ raise_frame(setting_frame)
 
 # -------------------------------------------------------------- // Function \\ --------------------------------------------------------------
 
+
 def file_progress_ui(file_list, process):
-    
+
     style = ttk.Style()
     style.configure("White.TFrame", background="white")
     style.configure("White.TLabelframe", background="white", font=("Arial", 15))
@@ -267,11 +276,13 @@ def file_progress_ui(file_list, process):
     download_popup.focus_set()
     download_popup.title("Process")
 
-    btn_frame = ttk.Labelframe(download_popup, text="Button for all files:", style="White.TLabelframe")
+    btn_frame = ttk.Labelframe(
+        download_popup, text="Button for all files:", style="White.TLabelframe"
+    )
     btn_frame.grid(row=0, column=0, sticky="ew")
     progresses_frame = ttk.Frame(download_popup, style="White.TFrame")
     progresses_frame.grid(row=1, column=0, sticky="nsew")
-    
+
     canvas = tkinter.Canvas(progresses_frame, bg="white")
     scrollbar = ttk.Scrollbar(progresses_frame, orient="vertical", command=canvas.yview)
     scrollable_frame = ttk.Frame(canvas, style="White.TFrame")
@@ -341,6 +352,7 @@ def file_progress_ui(file_list, process):
                         manager.resume_file(index)
                         ui["pause"].configure(text="Pause")
                 pause_all_button.configure(text="Pause")
+
     def cancel_all_thread():
         manager.stop()
         canvas.unbind_all("<MouseWheel>")
@@ -352,15 +364,21 @@ def file_progress_ui(file_list, process):
 
     ui_list = {}
     for i, file in enumerate(file_list):
-        progress_frame = ttk.Labelframe(scrollable_frame, text="From: " + file[0], style="White.TLabelframe")
+        progress_frame = ttk.Labelframe(
+            scrollable_frame, text="From: " + file[0], style="White.TLabelframe"
+        )
         progress_frame.grid(row=i, column=0, pady=5, padx=10, sticky="ew")
-        des_label = ttk.Label(progress_frame, text="To: " + file[2], style="White.TLabel")
+        des_label = ttk.Label(
+            progress_frame, text="To: " + file[2], style="White.TLabel"
+        )
         des_label.grid(row=0, column=0, columnspan=4, padx=5, pady=5, sticky="ew")
         progress_bar = ttk.Progressbar(
             progress_frame, maximum=file[1] + 1, mode="determinate"
         )
         progress_bar.grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky="ew")
-        total_label = ttk.Label(progress_frame, text="Total: " + format_bytes(file[1]), style="White.TLabel")
+        total_label = ttk.Label(
+            progress_frame, text="Total: " + format_bytes(file[1]), style="White.TLabel"
+        )
         total_label.grid(row=2, column=1, padx=5, pady=5, sticky="w")
         pause_button = ttk.Button(progress_frame, text="Pause", style="White.TButton")
         pause_button.configure(command=lambda index=i: toggle_pause(index))
@@ -380,14 +398,18 @@ def file_progress_ui(file_list, process):
             "cancel": cancel_button,
         }
 
-    pause_all_button = ttk.Button(btn_frame, text="Pause", style="White.TButton", command=toggle_pause_all)
+    pause_all_button = ttk.Button(
+        btn_frame, text="Pause", style="White.TButton", command=toggle_pause_all
+    )
     pause_all_button.grid(row=0, column=0, padx=5, pady=5, sticky="w")
-    cancel_all_button = ttk.Button(btn_frame, text="Cancel", style="White.TButton", command=cancel_all)
+    cancel_all_button = ttk.Button(
+        btn_frame, text="Cancel", style="White.TButton", command=cancel_all
+    )
     cancel_all_button.grid(row=0, column=1, padx=5, pady=5, sticky="w")
-    
+
     download_popup.update_idletasks()
-    width = download_popup.winfo_width() + 330  
-    height = download_popup.winfo_height() + 140  
+    width = download_popup.winfo_width() + 330
+    height = download_popup.winfo_height() + 140
     rootWidth = window.winfo_width()
     rootHeight = window.winfo_height()
     rootX = window.winfo_x()
@@ -401,6 +423,8 @@ def file_progress_ui(file_list, process):
     manager.start()
 
     window.wait_window(download_popup)
+
+
 def download():
     if not treeview.selection():
         return
@@ -443,12 +467,11 @@ def download():
                     os.mkdir(local_path)
                     for child in item.get("children", []):
                         download_siever(child, local_path)
-    
+
     for path in treeview.selection():
         download_siever(flatten_server_directory[path])
 
     file_progress_ui(download_list, pro.DownloadManager)
-
 
 
 def upload_files():
@@ -499,7 +522,6 @@ def upload_files():
         temp = path + ".uploading"
         if temp in flatten_server_directory:
             management_msgr.send_DRQ(temp)
-
 
 
 def upload_folder():
@@ -570,7 +592,6 @@ def upload_folder():
             management_msgr.send_DRQ(temp)
 
 
-
 def flatten_directory():
     flat_dict = {}
 
@@ -608,7 +629,6 @@ def monitor_directory(msgr):
         disconnect()
 
 
-
 def format_bytes(size):
     # 2**10 = 1024
     power = 2**10
@@ -619,7 +639,6 @@ def format_bytes(size):
         n += 1
     formatted_size = f"{size:.2f}".rstrip("0").rstrip(".")
     return f"{formatted_size} {units[n]}"
-
 
 
 def update_directory(query=""):
@@ -640,13 +659,16 @@ def update_directory(query=""):
             else:
                 children = treeview.get_children(item["path"])
                 for child in children:
-                    if child not in flatten_server_directory or query not in child:
+                    if (
+                        child not in flatten_server_directory
+                        or query not in child.lower()
+                    ):
                         treeview.delete(child)
             for child in item.get("children", []):
                 process_directory(child, query, item["path"])
         elif item["type"] == "file":
-            icon_file = find_image_file(item["name"]) 
-            if query in item["name"] and not treeview.exists(item["path"]):
+            icon_file = find_image_file(item["name"])
+            if query in item["name"].lower() and not treeview.exists(item["path"]):
                 treeview.insert(
                     parent,
                     0,
@@ -662,7 +684,6 @@ def update_directory(query=""):
                 )
 
     process_directory(server_directory, query.lower())
-
 
 
 def validate_input():
@@ -707,7 +728,6 @@ def connect():
     change_port_sever()
 
 
-
 def disconnect():
     if directory_lock.locked():
         return
@@ -724,7 +744,6 @@ def disconnect():
     set_ip_server_entry.configure(state="normal")
     set_port_entry.configure(state="normal")
     search_entry.configure(state="disabled")
-
 
 
 def delete():
@@ -808,78 +827,91 @@ def popup_menu(event):
     popup.tk_popup(event.x_root, event.y_root)
 
 
-
 def search_dir(*args):
     if directory_lock.locked():
         return
     with directory_lock:
         update_directory(search_var.get())
 
+
 file_extension = {
-     "PDF": ["pdf"],
-     "Text": ["txt"],
-     "Picture": ["jpg", "png", "svg", "gif", "raw"],
-     "Code": ["cpp", "py", "css", "html", "js", "cs", "c", "json"], 
+    "PDF": ["pdf"],
+    "Text": ["txt"],
+    "Picture": ["jpg", "png", "svg", "gif", "raw"],
+    "Code": ["cpp", "py", "css", "html", "js", "cs", "c", "json"],
 }
+
+
 def find_image_file(filename):
-     dot_index = filename.rfind('.')
-     
-     if dot_index == -1:
-          return indefinite_image
+    dot_index = filename.rfind(".")
 
-     extension = filename[dot_index + 1:].lower()
-     for key, extensions in file_extension.items():
-          if extension in extensions:
-               if key == "PDF":
-                    return pdf_image
-               elif key == "Text":
-                    return txt_image
-               elif key == "Picture":
-                    return pictureFile_image
-               elif key == "Code":
-                    return coding_image
-     
-     return indefinite_image
+    if dot_index == -1:
+        return indefinite_image
 
+    extension = filename[dot_index + 1 :].lower()
+    for key, extensions in file_extension.items():
+        if extension in extensions:
+            if key == "PDF":
+                return pdf_image
+            elif key == "Text":
+                return txt_image
+            elif key == "Picture":
+                return pictureFile_image
+            elif key == "Code":
+                return coding_image
+
+    return indefinite_image
 
 
 explorer_objects = {}
 
 # --------------------------------------------------- // Icon - Image \\ ----------------------------------------------------
-folder_image = Image.open("Image/folder.png")  
+folder_image = Image.open("Image/folder.png")
 folder_image = ImageTk.PhotoImage(folder_image.resize((22, 22), Image.LANCZOS))
 
-pdf_image = Image.open("Image/pdfOnTree.png")  
+pdf_image = Image.open("Image/pdfOnTree.png")
 pdf_image = ImageTk.PhotoImage(pdf_image.resize((20, 20), Image.LANCZOS))
 
-txt_image = Image.open("Image/txtFile.png")  
+txt_image = Image.open("Image/txtFile.png")
 txt_image = ImageTk.PhotoImage(txt_image.resize((16, 16), Image.LANCZOS))
 
-pictureFile_image = Image.open("Image/picture.png")  
-pictureFile_image = ImageTk.PhotoImage(pictureFile_image.resize((20, 20), Image.LANCZOS))
+pictureFile_image = Image.open("Image/picture.png")
+pictureFile_image = ImageTk.PhotoImage(
+    pictureFile_image.resize((20, 20), Image.LANCZOS)
+)
 
-coding_image = Image.open("Image/coding.png")  
+coding_image = Image.open("Image/coding.png")
 coding_image = ImageTk.PhotoImage(coding_image.resize((24, 24), Image.LANCZOS))
 
-indefinite_image = Image.open("Image/new-document.png")  
+indefinite_image = Image.open("Image/new-document.png")
 indefinite_image = ImageTk.PhotoImage(indefinite_image.resize((24, 24), Image.LANCZOS))
 
-recycle_bin_icon = Image.open("Image/recycle-bin.png")  
-recycle_bin_icon = customtkinter.CTkImage(recycle_bin_icon.resize((22, 22), Image.LANCZOS))
+recycle_bin_icon = Image.open("Image/recycle-bin.png")
+recycle_bin_icon = customtkinter.CTkImage(
+    recycle_bin_icon.resize((22, 22), Image.LANCZOS)
+)
 
-new_folder_icon = Image.open("Image/new-folder.png")  
-new_folder_icon = customtkinter.CTkImage(new_folder_icon.resize((24, 24), Image.LANCZOS))
+new_folder_icon = Image.open("Image/new-folder.png")
+new_folder_icon = customtkinter.CTkImage(
+    new_folder_icon.resize((24, 24), Image.LANCZOS)
+)
 
-download_file_icon = Image.open("Image/download.png")  
-download_file_icon = customtkinter.CTkImage(download_file_icon.resize((24, 24), Image.LANCZOS))
+download_file_icon = Image.open("Image/download.png")
+download_file_icon = customtkinter.CTkImage(
+    download_file_icon.resize((24, 24), Image.LANCZOS)
+)
 
-upload_file_icon = Image.open("Image/upload_file.png")  
-upload_file_icon = customtkinter.CTkImage(upload_file_icon.resize((24, 24), Image.LANCZOS))
+upload_file_icon = Image.open("Image/upload_file.png")
+upload_file_icon = customtkinter.CTkImage(
+    upload_file_icon.resize((24, 24), Image.LANCZOS)
+)
 
-upload_folder_icon = Image.open("Image/upload_folder.png")  
-upload_folder_icon = customtkinter.CTkImage(upload_folder_icon.resize((24, 24), Image.LANCZOS))
+upload_folder_icon = Image.open("Image/upload_folder.png")
+upload_folder_icon = customtkinter.CTkImage(
+    upload_folder_icon.resize((24, 24), Image.LANCZOS)
+)
 
-search_icon = Image.open("Image/search.png")  
+search_icon = Image.open("Image/search.png")
 search_icon = customtkinter.CTkImage(search_icon.resize((24, 24), Image.LANCZOS))
 
 # ---------------------------------------------- // Frame \\ -----------------------------------------------------
@@ -906,63 +938,64 @@ popup.add_command(label="Upload folder", command=upload_folder)
 
 """ FUNCTION BUTTONS """
 delete_button = customtkinter.CTkButton(
-    tool_frame, text="Delete", 
-    state="normal", 
+    tool_frame,
+    text="Delete",
+    state="normal",
     image=recycle_bin_icon,
     fg_color="white",
     text_color="black",
     width=25,
     hover_color="#CCFFFF",
-    command=delete
+    command=delete,
 )
 
 
 folder_button = customtkinter.CTkButton(
-    tool_frame, 
-    text="New folder", 
+    tool_frame,
+    text="New folder",
     image=new_folder_icon,
     fg_color="white",
     text_color="black",
-    state="normal", 
+    state="normal",
     width=25,
     hover_color="#CCFFFF",
-    command=folder
+    command=folder,
 )
 
 download_button = customtkinter.CTkButton(
-    tool_frame, 
-    text="Download", 
+    tool_frame,
+    text="Download",
     width=25,
-    state="normal", 
+    state="normal",
     text_color="black",
     fg_color="white",
     image=download_file_icon,
     hover_color="#CCFFFF",
-    command=download
+    command=download,
 )
 
 upload_button = customtkinter.CTkButton(
-    tool_frame, 
-    text="Upload file", 
+    tool_frame,
+    text="Upload file",
     fg_color="white",
     text_color="black",
     image=upload_file_icon,
     width=25,
-    state="normal", 
+    state="normal",
     hover_color="#CCFFFF",
-    command=upload_files
+    command=upload_files,
 )
 
 upload_folder_button = customtkinter.CTkButton(
-    tool_frame, 
-    text="Upload folder", 
+    tool_frame,
+    text="Upload folder",
     fg_color="white",
     text_color="black",
     image=upload_folder_icon,
     width=25,
-    state="normal", 
+    state="normal",
     hover_color="#CCFFFF",
-    command=upload_folder
+    command=upload_folder,
 )
 
 
@@ -971,13 +1004,13 @@ search_icon = customtkinter.CTkLabel(tool_frame, image=search_icon, text="")
 search_var = customtkinter.StringVar()
 search_var.trace("w", search_dir)
 search_entry = customtkinter.CTkEntry(
-     tool_frame,
-     placeholder_text="Search file",
-     textvariable=search_var,
-     width=300,
-     height=25,
-     corner_radius=9,
-     font=("", 14)
+    tool_frame,
+    placeholder_text="Search file",
+    textvariable=search_var,
+    width=300,
+    height=25,
+    corner_radius=9,
+    font=("", 14),
 )
 
 delete_button.grid(row=0, column=0, padx=4, pady=4, sticky="w")
@@ -986,17 +1019,16 @@ download_button.grid(row=0, column=2, padx=4, pady=4, sticky="w")
 upload_button.grid(row=0, column=3, padx=4, pady=4, sticky="w")
 upload_folder_button.grid(row=0, column=4, padx=4, pady=4, sticky="w")
 search_icon.grid(row=0, column=5, padx=4, pady=4, sticky="e")
-search_entry.grid(row=0, column=6, padx=(0,50), pady=4, sticky="e")
+search_entry.grid(row=0, column=6, padx=(0, 50), pady=4, sticky="e")
 """ TREE STYLE CONFIG """
 style = ttk.Style()
 style.configure("Treeview", font=("", 12), rowheight=29)
 style.configure("Treeview.Heading", font=customtkinter.CTkFont(weight="bold", size=11))
 style.map(
-     "Treeview", 
-          background=[('selected', '#99FFFF')],
-          foreground=[('selected', 'black')],
-     )
-
+    "Treeview",
+    background=[("selected", "#99FFFF")],
+    foreground=[("selected", "black")],
+)
 
 
 # Create a new style for the Treeview
@@ -1004,8 +1036,8 @@ style = ttk.Style()
 
 treeview = ttk.Treeview(dir_frame, style="Treeview", height=21)
 treeview["columns"] = ("mtime", "size")
-treeview.column("#0", width=670, anchor="w")  
-treeview.column("mtime", width=300, anchor="w")  
+treeview.column("#0", width=670, anchor="w")
+treeview.column("mtime", width=300, anchor="w")
 treeview.column("size", width=200, anchor="w")
 treeview.heading("#0", text="Name", anchor="w")
 treeview.heading("mtime", text="Date modified", anchor="w")
@@ -1017,9 +1049,8 @@ treeview.configure(yscrollcommand=vsb.set)
 treeview.tag_configure("highlight", background="#CCFFFF")
 
 
-
 treeview.grid(row=0, column=0, sticky="nsew")
-vsb.grid(row=0, column=1, padx=(0,57), sticky="ns")
+vsb.grid(row=0, column=1, padx=(0, 57), sticky="ns")
 
 explorer_frame.grid_columnconfigure(0, weight=1)
 explorer_frame.grid_rowconfigure(0, weight=1)
@@ -1030,14 +1061,15 @@ dir_frame.grid_rowconfigure(0, weight=1)
 dir_frame.grid_columnconfigure(0, weight=1)
 
 
-
-#region Setting
+# region Setting
 IP_server_default = customtkinter.StringVar(value="127.0.0.1")
 port_default = customtkinter.StringVar(value="8888")
+
 
 # -------------------------------------// Function \\ -------------------------------------
 def change_port_sever(event=None):
     port_label.configure(text=f"Port: {set_port_entry.get()}")
+
 
 def change_ip_sever(event=None):
     ip_server.configure(text=f"IP: {set_ip_server_entry.get()}")
@@ -1045,24 +1077,26 @@ def change_ip_sever(event=None):
 
 # -------------------------------------// Frame \\ -------------------------------------
 client_information_frame = customtkinter.CTkFrame(
-    setting_frame,
-    fg_color="white",
-    width=360,
-    height=200
+    setting_frame, fg_color="white", width=360, height=200
 )
 client_information_frame.place(x=50, y=60)
 
 sever_information_frame = customtkinter.CTkFrame(
-    setting_frame,
-    fg_color="white",
-    width=360,
-    height=200
+    setting_frame, fg_color="white", width=360, height=200
 )
 sever_information_frame.place(x=470, y=60)
 
 # -------------------------------------// Image \\ -------------------------------------
-server_image = customtkinter.CTkImage(dark_image=Image.open("Image/sever.png"), light_image=Image.open("Image/sever.png"), size=(145, 145))
-client_Image = customtkinter.CTkImage(dark_image=Image.open("Image/computer.png"), light_image=Image.open("Image/computer.png"),size=(125, 125))
+server_image = customtkinter.CTkImage(
+    dark_image=Image.open("Image/sever.png"),
+    light_image=Image.open("Image/sever.png"),
+    size=(145, 145),
+)
+client_Image = customtkinter.CTkImage(
+    dark_image=Image.open("Image/computer.png"),
+    light_image=Image.open("Image/computer.png"),
+    size=(125, 125),
+)
 
 
 # -------------------------------------// Object \\ -------------------------------------
@@ -1077,38 +1111,60 @@ set_port_entry.place(x=50, y=430)
 set_port_entry.bind("<Return>", change_port_sever)
 
 set_ip_server_entry = customtkinter.CTkEntry(
-    setting_frame,
-    width=200,
-    font=("Helvetica", 18),
-    textvariable=IP_server_default
-
+    setting_frame, width=200, font=("Helvetica", 18), textvariable=IP_server_default
 )
 set_ip_server_entry.place(x=50, y=350)
 set_ip_server_entry.bind("<Return>", change_ip_sever)
 
 
 """ DISPLAY INFOMATION OF CLIENT, SERVER """
-text_client_info = customtkinter.CTkLabel(setting_frame, text="Client Info", font=("Bold", 25))
+text_client_info = customtkinter.CTkLabel(
+    setting_frame, text="Client Info", font=("Bold", 25)
+)
 text_client_info.place(x=50, y=40)
-text_server_info = customtkinter.CTkLabel(setting_frame, text="Server Info", font=("Bold", 25))
+text_server_info = customtkinter.CTkLabel(
+    setting_frame, text="Server Info", font=("Bold", 25)
+)
 text_server_info.place(x=470, y=40)
 
-port_info = customtkinter.CTkLabel(setting_frame, text="Set Port", font=customtkinter.CTkFont(weight="bold", size=18))
+port_info = customtkinter.CTkLabel(
+    setting_frame, text="Set Port", font=customtkinter.CTkFont(weight="bold", size=18)
+)
 port_info.place(x=50, y=402)
-IP_server_Info = customtkinter.CTkLabel(setting_frame, text="Set IP Server", font=customtkinter.CTkFont(weight="bold", size=18))
+IP_server_Info = customtkinter.CTkLabel(
+    setting_frame,
+    text="Set IP Server",
+    font=customtkinter.CTkFont(weight="bold", size=18),
+)
 IP_server_Info.place(x=50, y=322)
 
-customtkinter.CTkLabel(sever_information_frame, image=server_image, text="").place(x=0, y=30)
-customtkinter.CTkLabel(client_information_frame, image=client_Image, text="").place(x=0, y=30)
+customtkinter.CTkLabel(sever_information_frame, image=server_image, text="").place(
+    x=0, y=30
+)
+customtkinter.CTkLabel(client_information_frame, image=client_Image, text="").place(
+    x=0, y=30
+)
 
-hostname_label = customtkinter.CTkLabel(client_information_frame, text=f"Host name: {hostname}", font=("Helvetica", 15))
+hostname_label = customtkinter.CTkLabel(
+    client_information_frame, text=f"Host name: {hostname}", font=("Helvetica", 15)
+)
 hostname_label.place(x=140, y=30)
-hostip = customtkinter.CTkLabel(client_information_frame, text=f"Host IP: {hostip}", font=("Helvetica", 15))
+hostip = customtkinter.CTkLabel(
+    client_information_frame, text=f"Host IP: {hostip}", font=("Helvetica", 15)
+)
 hostip.place(x=140, y=60)
 
-port_label = customtkinter.CTkLabel(sever_information_frame, text=f"Port: {set_port_entry.get()}", font=("Helvetica", 15))
+port_label = customtkinter.CTkLabel(
+    sever_information_frame,
+    text=f"Port: {set_port_entry.get()}",
+    font=("Helvetica", 15),
+)
 port_label.place(x=145, y=30)
-ip_server = customtkinter.CTkLabel(sever_information_frame, text=f"IP: {set_ip_server_entry.get()}", font=("Helvetica", 15))
+ip_server = customtkinter.CTkLabel(
+    sever_information_frame,
+    text=f"IP: {set_ip_server_entry.get()}",
+    font=("Helvetica", 15),
+)
 ip_server.place(x=145, y=60)
 
 
@@ -1133,4 +1189,4 @@ disconnect_button.place(x=470, y=400)
 
 
 window.mainloop()
-#endregion
+# endregion

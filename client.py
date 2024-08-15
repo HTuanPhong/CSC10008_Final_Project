@@ -399,12 +399,15 @@ def update_directory(query=""):
             else:
                 children = treeview.get_children(item["path"])
                 for child in children:
-                    if child not in flatten_server_directory or query not in child:
+                    if (
+                        child not in flatten_server_directory
+                        or query not in child.lower()
+                    ):
                         treeview.delete(child)
             for child in item.get("children", []):
                 process_directory(child, query, item["path"])
         elif item["type"] == "file":
-            if query in item["name"] and not treeview.exists(item["path"]):
+            if query in item["name"].lower() and not treeview.exists(item["path"]):
                 treeview.insert(
                     parent,
                     0,
