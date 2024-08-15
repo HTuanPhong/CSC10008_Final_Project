@@ -1064,7 +1064,8 @@ dir_frame.grid_columnconfigure(0, weight=1)
 # region Setting
 IP_server_default = customtkinter.StringVar(value="127.0.0.1")
 port_default = customtkinter.StringVar(value="8888")
-
+number_thread_default = customtkinter.StringVar(value="8")
+segment_size_default = customtkinter.StringVar(value="65536")
 
 # -------------------------------------// Function \\ -------------------------------------
 def change_port_sever(event=None):
@@ -1107,16 +1108,30 @@ set_port_entry = customtkinter.CTkEntry(
     font=("Helvetica", 18),
     textvariable=port_default,
 )
-set_port_entry.place(x=50, y=430)
+set_port_entry.place(x=50, y=370)
 set_port_entry.bind("<Return>", change_port_sever)
 
 set_ip_server_entry = customtkinter.CTkEntry(
     setting_frame, width=200, font=("Helvetica", 18), textvariable=IP_server_default
 )
-set_ip_server_entry.place(x=50, y=350)
+set_ip_server_entry.place(x=50, y=300)
 set_ip_server_entry.bind("<Return>", change_ip_sever)
 
+set_number_thread = customtkinter.CTkEntry(
+    setting_frame,
+    width=200,
+    font=("Helvetica", 18),
+    textvariable=number_thread_default,
+)
+set_number_thread.place(x = 500, y= 300)
 
+set_segment_size = customtkinter.CTkEntry(
+    setting_frame,
+    width=200,
+    font=("Helvetica", 18),
+    textvariable=segment_size_default,
+)
+set_segment_size.place(x=500, y=370)
 """ DISPLAY INFOMATION OF CLIENT, SERVER """
 text_client_info = customtkinter.CTkLabel(
     setting_frame, text="Client Info", font=("Bold", 25)
@@ -1127,16 +1142,21 @@ text_server_info = customtkinter.CTkLabel(
 )
 text_server_info.place(x=470, y=40)
 
-port_info = customtkinter.CTkLabel(
+customtkinter.CTkLabel(
     setting_frame, text="Set Port", font=customtkinter.CTkFont(weight="bold", size=18)
-)
-port_info.place(x=50, y=402)
-IP_server_Info = customtkinter.CTkLabel(
-    setting_frame,
-    text="Set IP Server",
-    font=customtkinter.CTkFont(weight="bold", size=18),
-)
-IP_server_Info.place(x=50, y=322)
+).place(x=50, y=340)
+
+customtkinter.CTkLabel(
+    setting_frame, text="Set IP Server", font=customtkinter.CTkFont(weight="bold", size=18),
+).place(x=50, y=270)
+
+customtkinter.CTkLabel(
+    setting_frame, text="Segment size", font=customtkinter.CTkFont(weight="bold", size=18)
+).place(x=500, y=340)
+
+customtkinter.CTkLabel(
+    setting_frame, text="Number thread", font=customtkinter.CTkFont(weight="bold", size=18),
+).place(x=500, y=270)
 
 customtkinter.CTkLabel(sever_information_frame, image=server_image, text="").place(
     x=0, y=30
@@ -1176,7 +1196,7 @@ connect_button = customtkinter.CTkButton(
     font=customtkinter.CTkFont(weight="bold", size=18),
     command=connect,
 )
-connect_button.place(x=470, y=350)
+connect_button.place(x=50, y=450)
 
 disconnect_button = customtkinter.CTkButton(
     setting_frame,
@@ -1185,7 +1205,7 @@ disconnect_button = customtkinter.CTkButton(
     font=customtkinter.CTkFont(weight="bold", size=18),
     command=disconnect,
 )
-disconnect_button.place(x=470, y=400)
+disconnect_button.place(x=50, y=500)
 
 
 window.mainloop()
