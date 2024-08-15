@@ -17,11 +17,12 @@ MIN_SEGMENT_SIZE = 65536
 
 
 class DownloadManager:
-    def __init__(self, host, port, num_threads, update=print):
+    def __init__(self, host, port, num_threads, min_seg, update=print):
         self.host = host
         self.port = port
         self.segment_queue = Queue()
         self.num_threads = num_threads
+        self.min_seg = min_seg
         self.update = update
         self.files = {}
         self.threads = []
@@ -79,7 +80,7 @@ class DownloadManager:
         if size == 0:
             self.segment_queue.put((file_id, 0, 0))
         else:
-            segment_size = max(size // (self.num_threads * 4), MIN_SEGMENT_SIZE)
+            segment_size = max(size // (self.num_threads * 4), self.min_seg)
             for start in range(0, size, segment_size):
                 length = min(segment_size, size - start)
                 self.segment_queue.put((file_id, start, length))
@@ -127,11 +128,12 @@ class DownloadManager:
 
 
 class UploadManager:
-    def __init__(self, host, port, num_threads, update=print):
+    def __init__(self, host, port, num_threads, min_seg, update=print):
         self.host = host
         self.port = port
         self.segment_queue = Queue()
         self.num_threads = num_threads
+        self.min_seg = min_seg
         self.update = update
         self.files = {}
         self.threads = []
@@ -184,7 +186,7 @@ class UploadManager:
         if size == 0:
             self.segment_queue.put((file_id, 0, 0))
         else:
-            segment_size = max(size // (self.num_threads * 4), MIN_SEGMENT_SIZE)
+            segment_size = max(size // (self.num_threads * 4), self.min_seg)
             for start in range(0, size, segment_size):
                 length = min(segment_size, size - start)
                 self.segment_queue.put((file_id, start, length))

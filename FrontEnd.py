@@ -18,6 +18,8 @@ import modules.process as pro
 
 HOST = None
 PORT = None
+SEGMENT = 65536
+THREAD = 8
 disconnect_event = threading.Event()
 directory_lock = threading.Lock()
 server_directory = {}
@@ -319,7 +321,7 @@ def file_progress_ui(file_list, process):
                 progress_frame.destroy()
             download_popup.update_idletasks()
 
-    manager = process(HOST, PORT, 6, update_progress)
+    manager = process(HOST, PORT, THREAD, SEGMENT, update_progress)
 
     def cancel(index):
         with ui_lock:
@@ -698,6 +700,24 @@ def validate_input():
     return True
 
 
+def apply_setting():
+    try:
+        thread = int(number_thread_default.get())
+        segment = int(segment_size_default.get())
+    except ValueError:
+        tkinter.messagebox.showerror("Error", "Please enter settings correctly")
+        return
+    if thread < 1 or thread > 20:
+        tkinter.messagebox.showerror("Error", "Connection must be between 1 and 20")
+        return
+    if segment < 1:
+        tkinter.messagebox.showerror("Error", "Min segment size must be greater than 0")
+        return
+    global SEGMENT, THREAD
+    SEGMENT = segment
+    THREAD = thread
+
+
 def connect():
     if not validate_input():
         return
@@ -1067,6 +1087,7 @@ port_default = customtkinter.StringVar(value="8888")
 number_thread_default = customtkinter.StringVar(value="8")
 segment_size_default = customtkinter.StringVar(value="65536")
 
+
 # -------------------------------------// Function \\ -------------------------------------
 def change_port_sever(event=None):
     port_label.configure(text=f"Port: {set_port_entry.get()}")
@@ -1123,7 +1144,7 @@ set_number_thread = customtkinter.CTkEntry(
     font=("Helvetica", 18),
     textvariable=number_thread_default,
 )
-set_number_thread.place(x = 500, y= 300)
+set_number_thread.place(x=500, y=300)
 
 set_segment_size = customtkinter.CTkEntry(
     setting_frame,
@@ -1147,15 +1168,21 @@ customtkinter.CTkLabel(
 ).place(x=50, y=340)
 
 customtkinter.CTkLabel(
-    setting_frame, text="Set IP Server", font=customtkinter.CTkFont(weight="bold", size=18),
+    setting_frame,
+    text="Set IP Server",
+    font=customtkinter.CTkFont(weight="bold", size=18),
 ).place(x=50, y=270)
 
 customtkinter.CTkLabel(
-    setting_frame, text="Segment size", font=customtkinter.CTkFont(weight="bold", size=18)
+    setting_frame,
+    text="Min segment size",
+    font=customtkinter.CTkFont(weight="bold", size=18),
 ).place(x=500, y=340)
 
 customtkinter.CTkLabel(
-    setting_frame, text="Number thread", font=customtkinter.CTkFont(weight="bold", size=18),
+    setting_frame,
+    text="Number of connections",
+    font=customtkinter.CTkFont(weight="bold", size=18),
 ).place(x=500, y=270)
 
 customtkinter.CTkLabel(sever_information_frame, image=server_image, text="").place(
@@ -1188,7 +1215,7 @@ ip_server = customtkinter.CTkLabel(
 ip_server.place(x=145, y=60)
 
 
-""" CONNECT - DISCONNECT BUTTON """
+""" BUTTON """
 connect_button = customtkinter.CTkButton(
     setting_frame,
     text="Connect",
@@ -1206,6 +1233,15 @@ disconnect_button = customtkinter.CTkButton(
     command=disconnect,
 )
 disconnect_button.place(x=50, y=500)
+
+apply_button = customtkinter.CTkButton(
+    setting_frame,
+    text="Apply settings",
+    width=130,
+    font=customtkinter.CTkFont(weight="bold", size=18),
+    command=apply_setting,
+)
+apply_button.place(x=500, y=450)
 
 
 window.mainloop()
