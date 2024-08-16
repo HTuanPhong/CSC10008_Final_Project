@@ -1191,7 +1191,7 @@ set_port_entry.grid(row=1,column=1, padx = 6, pady = (3,15), sticky="n")
 
 "===========================================================<CLIENT FRAME>==========================================================="
 text_client_info = customtkinter.CTkLabel(
-    client_information_frame, text="Client Info", font=("Bold", 25)
+    client_information_frame, text="App Setting", font=("Bold", 25)
 )
 
 segment_frame = customtkinter.CTkFrame(
@@ -1210,7 +1210,7 @@ segment_size_entry = customtkinter.CTkEntry(
 )
 
 segment_label = customtkinter.CTkLabel(
-    segment_frame, text="Min segment size", font=customtkinter.CTkFont(weight="bold", size=18),
+    segment_frame, text="Min segment size (Bytes)", font=customtkinter.CTkFont(weight="bold", size=18),
 )
 
 thread_label = customtkinter.CTkLabel(
