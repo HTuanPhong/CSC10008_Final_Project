@@ -319,6 +319,7 @@ def file_progress_ui(file_list, process):
                 progress_frame = ui["frame"]
                 del ui_list[index]
                 progress_frame.destroy()
+                add_next_file()
             download_popup.update_idletasks()
 
     manager = process(HOST, PORT, THREAD, SEGMENT, update_progress)
@@ -335,10 +336,10 @@ def file_progress_ui(file_list, process):
             pause_button = ui_list[index]["pause"]
             if pause_button["text"] == "Pause":
                 manager.pause_file(index)
-                pause_button.configure(text="Resume")
+                pause_button.config(text="Resume")
             else:
                 manager.resume_file(index)
-                pause_button.configure(text="Pause")
+                pause_button.config(text="Pause")
 
     def toggle_pause_all():
         with ui_lock:
@@ -346,14 +347,14 @@ def file_progress_ui(file_list, process):
                 for index, ui in ui_list.items():
                     if ui["pause"]["text"] == "Pause":
                         manager.pause_file(index)
-                        ui["pause"].configure(text="Resume")
-                pause_all_button.configure(text="Resume")
+                        ui["pause"].config(text="Resume")
+                pause_all_button.config(text="Resume")
             else:
                 for index, ui in ui_list.items():
                     if ui["pause"]["text"] == "Resume":
                         manager.resume_file(index)
-                        ui["pause"].configure(text="Pause")
-                pause_all_button.configure(text="Pause")
+                        ui["pause"].config(text="Pause")
+                pause_all_button.config(text="Pause")
 
     def cancel_all_thread():
         manager.stop()
@@ -365,63 +366,61 @@ def file_progress_ui(file_list, process):
         t.start()
 
     ui_list = {}
-    for i, file in enumerate(file_list):
-        progress_frame = ttk.Labelframe(
-            scrollable_frame, text="From: " + file[0], style="White.TLabelframe"
-        )
-        progress_frame.grid(row=i, column=0, pady=5, padx=10, sticky="ew")
-        des_label = ttk.Label(
-            progress_frame, text="To: " + file[2], style="White.TLabel"
-        )
+    index = 0
+
+    def add_next_file():
+        nonlocal index, ui_list
+        if index >= len(file_list):
+            return
+        file = file_list[index]
+        progress_frame = ttk.Labelframe(scrollable_frame, text="From: " + file[0])
+        progress_frame.grid(row=index, column=0, pady=5, padx=10, sticky="ew")
+        des_label = ttk.Label(progress_frame, text="To: " + file[2])
         des_label.grid(row=0, column=0, columnspan=4, padx=5, pady=5, sticky="ew")
         progress_bar = ttk.Progressbar(
             progress_frame, maximum=file[1] + 1, mode="determinate"
         )
         progress_bar.grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky="ew")
-        total_label = ttk.Label(
-            progress_frame, text="Total: " + format_bytes(file[1]), style="White.TLabel"
-        )
+        total_label = ttk.Label(progress_frame, text="Total: " + format_bytes(file[1]))
         total_label.grid(row=2, column=1, padx=5, pady=5, sticky="w")
-        pause_button = ttk.Button(progress_frame, text="Pause", style="White.TButton")
-        pause_button.configure(command=lambda index=i: toggle_pause(index))
+        pause_button = ttk.Button(progress_frame, text="Pause")
+        pause_button.config(command=lambda index=index: toggle_pause(index))
         cancel_button = ttk.Button(
             progress_frame,
             text="Cancel",
-            style="White.TButton",
-            command=lambda index=i: cancel(index),
+            command=lambda index=index: cancel(index),
         )
         pause_button.grid(row=2, column=2, padx=5, pady=5, sticky="e")
         cancel_button.grid(row=2, column=3, padx=5, pady=5, sticky="e")
         progress_frame.grid_columnconfigure(0, weight=1)
-        ui_list[i] = {
+        ui_list[index] = {
             "frame": progress_frame,
             "progress": progress_bar,
             "pause": pause_button,
             "cancel": cancel_button,
         }
+        manager.add_file(*(file_list[index]))
+        index += 1
 
-    pause_all_button = ttk.Button(
-        btn_frame, text="Pause", style="White.TButton", command=toggle_pause_all
-    )
+    for i in range(THREAD + 2):
+        add_next_file()
+
+    pause_all_button = ttk.Button(btn_frame, text="Pause", command=toggle_pause_all)
     pause_all_button.grid(row=0, column=0, padx=5, pady=5, sticky="w")
-    cancel_all_button = ttk.Button(
-        btn_frame, text="Cancel", style="White.TButton", command=cancel_all
-    )
+    cancel_all_button = ttk.Button(btn_frame, text="Cancel", command=cancel_all)
     cancel_all_button.grid(row=0, column=1, padx=5, pady=5, sticky="w")
-
     download_popup.update_idletasks()
-    width = download_popup.winfo_width() + 330
-    height = download_popup.winfo_height() + 140
+    width = download_popup.winfo_width()
+    height = download_popup.winfo_height()
     rootWidth = window.winfo_width()
     rootHeight = window.winfo_height()
     rootX = window.winfo_x()
     rootY = window.winfo_y()
     x = rootX + (rootWidth // 2) - (width // 2)
     y = rootY + (rootHeight // 2) - (height // 2)
-    download_popup.geometry(f"{width}x{height}+{x}+{y}")
+    download_popup.geometry(f"+{x}+{y}")
     download_popup.update_idletasks()
     download_popup.protocol("WM_DELETE_WINDOW", cancel_all)
-    manager.add_files(file_list)
     manager.start()
 
     window.wait_window(download_popup)
@@ -1102,15 +1101,11 @@ setting_frame.columnconfigure(0, weight=1)
 setting_frame.rowconfigure(0, weight=1)
 setting_frame.rowconfigure(1, weight=1)
 
-server_information_frame = customtkinter.CTkFrame(
-    setting_frame, fg_color="#DAE8FC"
-)
+server_information_frame = customtkinter.CTkFrame(setting_frame, fg_color="#DAE8FC")
 server_information_frame.grid(row=0, column=0, padx=(6, 52), pady=(6, 3), sticky="swne")
 
-client_information_frame = customtkinter.CTkFrame(
-    setting_frame, fg_color="#D5E8D4"
-)
-client_information_frame.grid(row=1,column=0, padx=(6, 52), pady=(3, 6), sticky="swne")
+client_information_frame = customtkinter.CTkFrame(setting_frame, fg_color="#D5E8D4")
+client_information_frame.grid(row=1, column=0, padx=(6, 52), pady=(3, 6), sticky="swne")
 
 # -------------------------------------// Image \\ -------------------------------------
 server_image = customtkinter.CTkImage(
@@ -1140,12 +1135,17 @@ server_port_frame = customtkinter.CTkFrame(
 )
 
 set_port_entry = customtkinter.CTkEntry(
-    server_port_frame, width=250, font=("Helvetica", 18), textvariable=port_default,
+    server_port_frame,
+    width=250,
+    font=("Helvetica", 18),
+    textvariable=port_default,
 )
 set_port_entry.bind("<Return>", change_port_sever)
 
 port_server = customtkinter.CTkLabel(
-    server_information_frame, text=f"Port: {set_port_entry.get()}", font=("Helvetica", 15),
+    server_information_frame,
+    text=f"Port: {set_port_entry.get()}",
+    font=("Helvetica", 15),
 )
 
 set_ip_server_entry = customtkinter.CTkEntry(
@@ -1154,39 +1154,47 @@ set_ip_server_entry = customtkinter.CTkEntry(
 set_ip_server_entry.bind("<Return>", change_ip_sever)
 
 ip_server = customtkinter.CTkLabel(
-    server_information_frame, text=f"IP: {set_ip_server_entry.get()}", font=("Helvetica", 15),
+    server_information_frame,
+    text=f"IP: {set_ip_server_entry.get()}",
+    font=("Helvetica", 15),
 )
 port_label = customtkinter.CTkLabel(
-    server_port_frame, text="Set Port", font=customtkinter.CTkFont(weight="bold", size=18)
+    server_port_frame,
+    text="Set Port",
+    font=customtkinter.CTkFont(weight="bold", size=18),
 )
 
 ip_label = customtkinter.CTkLabel(
-    server_ip_frame, text="Set IP Server", font=customtkinter.CTkFont(weight="bold", size=18),
+    server_ip_frame,
+    text="Set IP Server",
+    font=customtkinter.CTkFont(weight="bold", size=18),
 )
 
 server_information_frame.rowconfigure(0, weight=1)
 server_information_frame.rowconfigure(1, weight=2)
 server_information_frame.rowconfigure(2, weight=2)
 server_information_frame.columnconfigure(3, weight=1)
-server_ip_frame.grid(row = 1, column = 2, pady = 3,stick = "swne")
-server_port_frame.grid(row = 2, column = 2, pady=3,stick = "swne")
+server_ip_frame.grid(row=1, column=2, pady=3, stick="swne")
+server_port_frame.grid(row=2, column=2, pady=3, stick="swne")
 
-text_server_info.grid(row=0,column=0, padx = (80,50), pady=0, sticky="s")
-customtkinter.CTkLabel(server_information_frame, image=server_image, text="").grid(row=1, column=0, rowspan=2 ,padx = (80,50))
+text_server_info.grid(row=0, column=0, padx=(80, 50), pady=0, sticky="s")
+customtkinter.CTkLabel(server_information_frame, image=server_image, text="").grid(
+    row=1, column=0, rowspan=2, padx=(80, 50)
+)
 # ip_server.grid(row=1,column=1, padx = 10, )
 # port_server.grid(row=2, column = 1, padx = 10)
 
 
-server_port_frame.rowconfigure(0, weight = 0)
-server_port_frame.rowconfigure(1, weight = 1)
-server_ip_frame.rowconfigure(1, weight = 0)
+server_port_frame.rowconfigure(0, weight=0)
+server_port_frame.rowconfigure(1, weight=1)
+server_ip_frame.rowconfigure(1, weight=0)
 server_ip_frame.rowconfigure(0, weight=1)
 
 
-ip_label.grid(row=0, column=0, padx = 6, pady = 3, sticky="ws")
-set_ip_server_entry.grid(row=1,column=0, padx = 6, pady = (9,9), sticky="s")
-port_label.grid(row=0,column=1, padx = 6, pady = 3, sticky="ws")
-set_port_entry.grid(row=1,column=1, padx = 6, pady = (3,15), sticky="n")
+ip_label.grid(row=0, column=0, padx=6, pady=3, sticky="ws")
+set_ip_server_entry.grid(row=1, column=0, padx=6, pady=(9, 9), sticky="s")
+port_label.grid(row=0, column=1, padx=6, pady=3, sticky="ws")
+set_port_entry.grid(row=1, column=1, padx=6, pady=(3, 15), sticky="n")
 
 
 "===========================================================<CLIENT FRAME>==========================================================="
@@ -1194,27 +1202,33 @@ text_client_info = customtkinter.CTkLabel(
     client_information_frame, text="App Setting", font=("Bold", 25)
 )
 
-segment_frame = customtkinter.CTkFrame(
-    client_information_frame, fg_color="transparent"
-)
+segment_frame = customtkinter.CTkFrame(client_information_frame, fg_color="transparent")
 
-thread_frame = customtkinter.CTkFrame(
-    client_information_frame, fg_color="transparent"
-)
+thread_frame = customtkinter.CTkFrame(client_information_frame, fg_color="transparent")
 number_thread_entry = customtkinter.CTkEntry(
-    thread_frame, width=250, font=("Helvetica", 18), textvariable=number_thread_default,
+    thread_frame,
+    width=250,
+    font=("Helvetica", 18),
+    textvariable=number_thread_default,
 )
 
 segment_size_entry = customtkinter.CTkEntry(
-    segment_frame, width=250, font=("Helvetica", 18), textvariable=segment_size_default,
+    segment_frame,
+    width=250,
+    font=("Helvetica", 18),
+    textvariable=segment_size_default,
 )
 
 segment_label = customtkinter.CTkLabel(
-    segment_frame, text="Segment Size (Bytes)", font=customtkinter.CTkFont(weight="bold", size=18),
+    segment_frame,
+    text="Segment Size (Bytes)",
+    font=customtkinter.CTkFont(weight="bold", size=18),
 )
 
 thread_label = customtkinter.CTkLabel(
-    thread_frame, text="Number of Connections", font=customtkinter.CTkFont(weight="bold", size=18),
+    thread_frame,
+    text="Number of Connections",
+    font=customtkinter.CTkFont(weight="bold", size=18),
 )
 
 hostname_label = customtkinter.CTkLabel(
@@ -1232,42 +1246,56 @@ client_information_frame.rowconfigure(2, weight=2)
 client_information_frame.columnconfigure(3, weight=1)
 
 
-segment_frame.grid(row = 1, column = 2, pady = 3,stick = "swne")
-thread_frame.grid(row = 2, column = 2, pady=3,stick = "swne")
+segment_frame.grid(row=1, column=2, pady=3, stick="swne")
+thread_frame.grid(row=2, column=2, pady=3, stick="swne")
 
-text_client_info.grid(row=0,column=0, padx = (80,50), pady=0, sticky="s")
-customtkinter.CTkLabel(client_information_frame, image=client_Image, text="").grid(row=1, column=0, rowspan=2 ,padx = (80,50))
+text_client_info.grid(row=0, column=0, padx=(80, 50), pady=0, sticky="s")
+customtkinter.CTkLabel(client_information_frame, image=client_Image, text="").grid(
+    row=1, column=0, rowspan=2, padx=(80, 50)
+)
 # hostname_label.grid(row=1,column=1, padx = 10, )
 # hostip.grid(row=2, column = 1, padx = 10)
 
 
-segment_frame.rowconfigure(0, weight = 1)
-segment_frame.rowconfigure(1, weight = 0)
+segment_frame.rowconfigure(0, weight=1)
+segment_frame.rowconfigure(1, weight=0)
 thread_frame.rowconfigure(0, weight=0)
-thread_frame.rowconfigure(1, weight = 1)
+thread_frame.rowconfigure(1, weight=1)
 
 
-segment_label.grid(row=0, column=0, padx = 6, pady = 3, sticky="ws")
-segment_size_entry.grid(row=1,column=0, padx = 6, pady = (9,9), sticky="s")
-thread_label.grid(row=0,column=1, padx = 6, pady = 3, sticky="ws")
-number_thread_entry.grid(row=1,column=1, padx = 6, pady = (3,15), sticky="n")
+segment_label.grid(row=0, column=0, padx=6, pady=3, sticky="ws")
+segment_size_entry.grid(row=1, column=0, padx=6, pady=(9, 9), sticky="s")
+thread_label.grid(row=0, column=1, padx=6, pady=3, sticky="ws")
+number_thread_entry.grid(row=1, column=1, padx=6, pady=(3, 15), sticky="n")
 
 "=========================================================== BUTTON ==========================================================="
 
 connect_button = customtkinter.CTkButton(
-    server_information_frame, text="Connect", width=130, font=customtkinter.CTkFont(weight="bold", size=18), command=connect,
+    server_information_frame,
+    text="Connect",
+    width=130,
+    font=customtkinter.CTkFont(weight="bold", size=18),
+    command=connect,
 )
-connect_button.grid(row=1, column=3, padx=(100,10), pady=10, sticky='sw')
+connect_button.grid(row=1, column=3, padx=(100, 10), pady=10, sticky="sw")
 
 disconnect_button = customtkinter.CTkButton(
-    server_information_frame, text="Disconnect", width=130, font=customtkinter.CTkFont(weight="bold", size=18), command=disconnect,
+    server_information_frame,
+    text="Disconnect",
+    width=130,
+    font=customtkinter.CTkFont(weight="bold", size=18),
+    command=disconnect,
 )
-disconnect_button.grid(row=2,column=3, padx=(100,10),pady=10,sticky='nw')
+disconnect_button.grid(row=2, column=3, padx=(100, 10), pady=10, sticky="nw")
 
 apply_button = customtkinter.CTkButton(
-    client_information_frame, text="Apply settings", width=130, font=customtkinter.CTkFont(weight="bold", size=18), command=apply_setting,
+    client_information_frame,
+    text="Apply settings",
+    width=130,
+    font=customtkinter.CTkFont(weight="bold", size=18),
+    command=apply_setting,
 )
-apply_button.grid(row=1, rowspan = 2, column=3, padx=(100,10), pady=10, sticky='w')
+apply_button.grid(row=1, rowspan=2, column=3, padx=(100, 10), pady=10, sticky="w")
 
 
 window.mainloop()

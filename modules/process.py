@@ -80,7 +80,8 @@ class DownloadManager:
         if size == 0:
             self.segment_queue.put((file_id, 0, 0))
         else:
-            segment_size = max(size // (self.num_threads * 4), self.min_seg)
+            # segment_size = max(size // (self.num_threads * 4), self.min_seg)
+            segment_size = self.min_seg
             for start in range(0, size, segment_size):
                 length = min(segment_size, size - start)
                 self.segment_queue.put((file_id, start, length))
