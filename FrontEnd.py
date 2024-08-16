@@ -50,7 +50,7 @@ SCROLL_FRAME_HEIGHT = 500
 window = customtkinter.CTk()
 window.title("File Transfer")
 window.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
-window.minsize(940, 500)
+# window.minsize(940, 500)
 bold_font = customtkinter.CTkFont(weight="bold", size=14)
 
 # ============================================================={{ MENU }}===========================================================
@@ -1056,9 +1056,9 @@ style = ttk.Style()
 
 treeview = ttk.Treeview(dir_frame, style="Treeview", height=21)
 treeview["columns"] = ("mtime", "size")
-treeview.column("#0", width=670, anchor="w")
+treeview.column("#0", width=400, anchor="w")
 treeview.column("mtime", width=300, anchor="w")
-treeview.column("size", width=200, anchor="w")
+treeview.column("size", width=100, anchor="w")
 treeview.heading("#0", text="Name", anchor="w")
 treeview.heading("mtime", text="Date modified", anchor="w")
 treeview.heading("size", text="Size", anchor="w")
@@ -1098,150 +1098,176 @@ def change_ip_sever(event=None):
 
 
 # -------------------------------------// Frame \\ -------------------------------------
-client_information_frame = customtkinter.CTkFrame(
-    setting_frame, fg_color="white", width=360, height=200
-)
-client_information_frame.place(x=50, y=60)
+setting_frame.columnconfigure(0, weight=1)
+setting_frame.rowconfigure(0, weight=1)
+setting_frame.rowconfigure(1, weight=1)
 
-sever_information_frame = customtkinter.CTkFrame(
-    setting_frame, fg_color="white", width=360, height=200
+server_information_frame = customtkinter.CTkFrame(
+    setting_frame, fg_color="#DAE8FC"
 )
-sever_information_frame.place(x=470, y=60)
+server_information_frame.grid(row=0, column=0, padx=(6, 52), pady=(6, 3), sticky="swne")
+
+client_information_frame = customtkinter.CTkFrame(
+    setting_frame, fg_color="#D5E8D4"
+)
+client_information_frame.grid(row=1,column=0, padx=(6, 52), pady=(3, 6), sticky="swne")
 
 # -------------------------------------// Image \\ -------------------------------------
 server_image = customtkinter.CTkImage(
     dark_image=Image.open("Image/sever.png"),
     light_image=Image.open("Image/sever.png"),
-    size=(145, 145),
+    size=(175, 150),
 )
 client_Image = customtkinter.CTkImage(
     dark_image=Image.open("Image/computer.png"),
     light_image=Image.open("Image/computer.png"),
-    size=(125, 125),
+    size=(175, 150),
 )
-
-
 # -------------------------------------// Object \\ -------------------------------------
 """ ENTRY PORT, IP OF SERVER """
-set_port_entry = customtkinter.CTkEntry(
-    setting_frame,
-    width=200,
-    font=("Helvetica", 18),
-    textvariable=port_default,
+
+"===========================================================<SERVER FRAME>==========================================================="
+text_server_info = customtkinter.CTkLabel(
+    server_information_frame, text="Server Info", font=("Bold", 25)
 )
-set_port_entry.place(x=50, y=370)
+
+server_ip_frame = customtkinter.CTkFrame(
+    server_information_frame, fg_color="transparent"
+)
+
+server_port_frame = customtkinter.CTkFrame(
+    server_information_frame, fg_color="transparent"
+)
+
+set_port_entry = customtkinter.CTkEntry(
+    server_port_frame, width=250, font=("Helvetica", 18), textvariable=port_default,
+)
 set_port_entry.bind("<Return>", change_port_sever)
 
-set_ip_server_entry = customtkinter.CTkEntry(
-    setting_frame, width=200, font=("Helvetica", 18), textvariable=IP_server_default
+port_server = customtkinter.CTkLabel(
+    server_information_frame, text=f"Port: {set_port_entry.get()}", font=("Helvetica", 15),
 )
-set_ip_server_entry.place(x=50, y=300)
+
+set_ip_server_entry = customtkinter.CTkEntry(
+    server_ip_frame, width=250, font=("Helvetica", 18), textvariable=IP_server_default
+)
 set_ip_server_entry.bind("<Return>", change_ip_sever)
 
-set_number_thread = customtkinter.CTkEntry(
-    setting_frame,
-    width=200,
-    font=("Helvetica", 18),
-    textvariable=number_thread_default,
+ip_server = customtkinter.CTkLabel(
+    server_information_frame, text=f"IP: {set_ip_server_entry.get()}", font=("Helvetica", 15),
 )
-set_number_thread.place(x=500, y=300)
+port_label = customtkinter.CTkLabel(
+    server_port_frame, text="Set Port", font=customtkinter.CTkFont(weight="bold", size=18)
+)
 
-set_segment_size = customtkinter.CTkEntry(
-    setting_frame,
-    width=200,
-    font=("Helvetica", 18),
-    textvariable=segment_size_default,
+ip_label = customtkinter.CTkLabel(
+    server_ip_frame, text="Set IP Server", font=customtkinter.CTkFont(weight="bold", size=18),
 )
-set_segment_size.place(x=500, y=370)
-""" DISPLAY INFOMATION OF CLIENT, SERVER """
+
+server_information_frame.rowconfigure(0, weight=1)
+server_information_frame.rowconfigure(1, weight=2)
+server_information_frame.rowconfigure(2, weight=2)
+server_information_frame.columnconfigure(3, weight=1)
+server_ip_frame.grid(row = 1, column = 2, pady = 3,stick = "swne")
+server_port_frame.grid(row = 2, column = 2, pady=3,stick = "swne")
+
+text_server_info.grid(row=0,column=0, padx = (80,50), pady=0, sticky="s")
+customtkinter.CTkLabel(server_information_frame, image=server_image, text="").grid(row=1, column=0, rowspan=2 ,padx = (80,50))
+# ip_server.grid(row=1,column=1, padx = 10, )
+# port_server.grid(row=2, column = 1, padx = 10)
+
+
+server_port_frame.rowconfigure(0, weight = 0)
+server_port_frame.rowconfigure(1, weight = 1)
+server_ip_frame.rowconfigure(1, weight = 0)
+server_ip_frame.rowconfigure(0, weight=1)
+
+
+ip_label.grid(row=0, column=0, padx = 6, pady = 3, sticky="ws")
+set_ip_server_entry.grid(row=1,column=0, padx = 6, pady = (9,9), sticky="s")
+port_label.grid(row=0,column=1, padx = 6, pady = 3, sticky="ws")
+set_port_entry.grid(row=1,column=1, padx = 6, pady = (3,15), sticky="n")
+
+
+"===========================================================<CLIENT FRAME>==========================================================="
 text_client_info = customtkinter.CTkLabel(
-    setting_frame, text="Client Info", font=("Bold", 25)
+    client_information_frame, text="Client Info", font=("Bold", 25)
 )
-text_client_info.place(x=50, y=40)
-text_server_info = customtkinter.CTkLabel(
-    setting_frame, text="Server Info", font=("Bold", 25)
+
+segment_frame = customtkinter.CTkFrame(
+    client_information_frame, fg_color="transparent"
 )
-text_server_info.place(x=470, y=40)
 
-customtkinter.CTkLabel(
-    setting_frame, text="Set Port", font=customtkinter.CTkFont(weight="bold", size=18)
-).place(x=50, y=340)
-
-customtkinter.CTkLabel(
-    setting_frame,
-    text="Set IP Server",
-    font=customtkinter.CTkFont(weight="bold", size=18),
-).place(x=50, y=270)
-
-customtkinter.CTkLabel(
-    setting_frame,
-    text="Min segment size",
-    font=customtkinter.CTkFont(weight="bold", size=18),
-).place(x=500, y=340)
-
-customtkinter.CTkLabel(
-    setting_frame,
-    text="Number of connections",
-    font=customtkinter.CTkFont(weight="bold", size=18),
-).place(x=500, y=270)
-
-customtkinter.CTkLabel(sever_information_frame, image=server_image, text="").place(
-    x=0, y=30
+thread_frame = customtkinter.CTkFrame(
+    client_information_frame, fg_color="transparent"
 )
-customtkinter.CTkLabel(client_information_frame, image=client_Image, text="").place(
-    x=0, y=30
+number_thread_entry = customtkinter.CTkEntry(
+    thread_frame, width=250, font=("Helvetica", 18), textvariable=number_thread_default,
+)
+
+segment_size_entry = customtkinter.CTkEntry(
+    segment_frame, width=250, font=("Helvetica", 18), textvariable=segment_size_default,
+)
+
+segment_label = customtkinter.CTkLabel(
+    segment_frame, text="Min segment size", font=customtkinter.CTkFont(weight="bold", size=18),
+)
+
+thread_label = customtkinter.CTkLabel(
+    thread_frame, text="Number of connections", font=customtkinter.CTkFont(weight="bold", size=18),
 )
 
 hostname_label = customtkinter.CTkLabel(
     client_information_frame, text=f"Host name: {hostname}", font=("Helvetica", 15)
 )
-hostname_label.place(x=140, y=30)
+
 hostip = customtkinter.CTkLabel(
     client_information_frame, text=f"Host IP: {hostip}", font=("Helvetica", 15)
 )
-hostip.place(x=140, y=60)
-
-port_label = customtkinter.CTkLabel(
-    sever_information_frame,
-    text=f"Port: {set_port_entry.get()}",
-    font=("Helvetica", 15),
-)
-port_label.place(x=145, y=30)
-ip_server = customtkinter.CTkLabel(
-    sever_information_frame,
-    text=f"IP: {set_ip_server_entry.get()}",
-    font=("Helvetica", 15),
-)
-ip_server.place(x=145, y=60)
 
 
-""" BUTTON """
+client_information_frame.rowconfigure(0, weight=1)
+client_information_frame.rowconfigure(1, weight=2)
+client_information_frame.rowconfigure(2, weight=2)
+client_information_frame.columnconfigure(3, weight=1)
+
+
+segment_frame.grid(row = 1, column = 2, pady = 3,stick = "swne")
+thread_frame.grid(row = 2, column = 2, pady=3,stick = "swne")
+
+text_client_info.grid(row=0,column=0, padx = (80,50), pady=0, sticky="s")
+customtkinter.CTkLabel(client_information_frame, image=client_Image, text="").grid(row=1, column=0, rowspan=2 ,padx = (80,50))
+# hostname_label.grid(row=1,column=1, padx = 10, )
+# hostip.grid(row=2, column = 1, padx = 10)
+
+
+segment_frame.rowconfigure(0, weight = 1)
+segment_frame.rowconfigure(1, weight = 0)
+thread_frame.rowconfigure(0, weight=0)
+thread_frame.rowconfigure(1, weight = 1)
+
+
+segment_label.grid(row=0, column=0, padx = 6, pady = 3, sticky="ws")
+segment_size_entry.grid(row=1,column=0, padx = 6, pady = (9,9), sticky="s")
+thread_label.grid(row=0,column=1, padx = 6, pady = 3, sticky="ws")
+number_thread_entry.grid(row=1,column=1, padx = 6, pady = (3,15), sticky="n")
+
+"=========================================================== BUTTON ==========================================================="
+
 connect_button = customtkinter.CTkButton(
-    setting_frame,
-    text="Connect",
-    width=130,
-    font=customtkinter.CTkFont(weight="bold", size=18),
-    command=connect,
+    server_information_frame, text="Connect", width=130, font=customtkinter.CTkFont(weight="bold", size=18), command=connect,
 )
-connect_button.place(x=50, y=450)
+connect_button.grid(row=1, column=3, padx=(100,10), pady=10, sticky='sw')
 
 disconnect_button = customtkinter.CTkButton(
-    setting_frame,
-    text="Disconnect",
-    width=130,
-    font=customtkinter.CTkFont(weight="bold", size=18),
-    command=disconnect,
+    server_information_frame, text="Disconnect", width=130, font=customtkinter.CTkFont(weight="bold", size=18), command=disconnect,
 )
-disconnect_button.place(x=50, y=500)
+disconnect_button.grid(row=2,column=3, padx=(100,10),pady=10,sticky='nw')
 
 apply_button = customtkinter.CTkButton(
-    setting_frame,
-    text="Apply settings",
-    width=130,
-    font=customtkinter.CTkFont(weight="bold", size=18),
-    command=apply_setting,
+    client_information_frame, text="Apply settings", width=130, font=customtkinter.CTkFont(weight="bold", size=18), command=apply_setting,
 )
-apply_button.place(x=500, y=450)
+apply_button.grid(row=1, rowspan = 2, column=3, padx=(100,10), pady=10, sticky='w')
 
 
 window.mainloop()
