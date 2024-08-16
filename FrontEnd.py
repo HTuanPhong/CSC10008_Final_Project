@@ -1210,11 +1210,11 @@ segment_size_entry = customtkinter.CTkEntry(
 )
 
 segment_label = customtkinter.CTkLabel(
-    segment_frame, text="Min segment size (Bytes)", font=customtkinter.CTkFont(weight="bold", size=18),
+    segment_frame, text="Segment Size (Bytes)", font=customtkinter.CTkFont(weight="bold", size=18),
 )
 
 thread_label = customtkinter.CTkLabel(
-    thread_frame, text="Number of connections", font=customtkinter.CTkFont(weight="bold", size=18),
+    thread_frame, text="Number of Connections", font=customtkinter.CTkFont(weight="bold", size=18),
 )
 
 hostname_label = customtkinter.CTkLabel(
