@@ -308,8 +308,14 @@ def file_progress_ui(file_list, process):
     canvas.grid_columnconfigure(0, weight=1)
     scrollable_frame.grid_columnconfigure(0, weight=1)
     ui_lock = threading.Lock()
+    cancel_event = threading.Event()
+    cancel_event.clear()
+    not_pause = threading.Event()
+    not_pause.set()
 
     def update_progress(index, bytes):
+        if cancel_event.is_set():
+            return
         with ui_lock:
             if index not in ui_list:
                 return
@@ -319,8 +325,11 @@ def file_progress_ui(file_list, process):
                 progress_frame = ui["frame"]
                 del ui_list[index]
                 progress_frame.destroy()
-                add_next_file()
             download_popup.update_idletasks()
+        if bytes == file_list[index][1]:
+            not_pause.wait()
+            with ui_lock:
+                add_next_file()
 
     manager = process(HOST, PORT, THREAD, SEGMENT, update_progress)
 
@@ -344,19 +353,26 @@ def file_progress_ui(file_list, process):
     def toggle_pause_all():
         with ui_lock:
             if pause_all_button["text"] == "Pause":
+                not_pause.clear()
                 for index, ui in ui_list.items():
                     if ui["pause"]["text"] == "Pause":
                         manager.pause_file(index)
                         ui["pause"].config(text="Resume")
                 pause_all_button.config(text="Resume")
             else:
+                not_pause.set()
                 for index, ui in ui_list.items():
                     if ui["pause"]["text"] == "Resume":
                         manager.resume_file(index)
                         ui["pause"].config(text="Pause")
                 pause_all_button.config(text="Pause")
 
+    def pause_all():
+        t = threading.Thread(target=toggle_pause_all, daemon=True)
+        t.start()
+
     def cancel_all_thread():
+        cancel_event.set()
         manager.stop()
         canvas.unbind_all("<MouseWheel>")
         download_popup.destroy()
@@ -373,21 +389,28 @@ def file_progress_ui(file_list, process):
         if index >= len(file_list):
             return
         file = file_list[index]
-        progress_frame = ttk.Labelframe(scrollable_frame, text="From: " + file[0])
+        progress_frame = ttk.Labelframe(
+            scrollable_frame, text="From: " + file[0], style="White.TLabelframe"
+        )
         progress_frame.grid(row=index, column=0, pady=5, padx=10, sticky="ew")
-        des_label = ttk.Label(progress_frame, text="To: " + file[2])
+        des_label = ttk.Label(
+            progress_frame, text="To: " + file[2], style="White.TLabel"
+        )
         des_label.grid(row=0, column=0, columnspan=4, padx=5, pady=5, sticky="ew")
         progress_bar = ttk.Progressbar(
             progress_frame, maximum=file[1] + 1, mode="determinate"
         )
         progress_bar.grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky="ew")
-        total_label = ttk.Label(progress_frame, text="Total: " + format_bytes(file[1]))
+        total_label = ttk.Label(
+            progress_frame, text="Total: " + format_bytes(file[1]), style="White.TLabel"
+        )
         total_label.grid(row=2, column=1, padx=5, pady=5, sticky="w")
-        pause_button = ttk.Button(progress_frame, text="Pause")
+        pause_button = ttk.Button(progress_frame, text="Pause", style="White.TButton")
         pause_button.config(command=lambda index=index: toggle_pause(index))
         cancel_button = ttk.Button(
             progress_frame,
             text="Cancel",
+            style="White.TButton",
             command=lambda index=index: cancel(index),
         )
         pause_button.grid(row=2, column=2, padx=5, pady=5, sticky="e")
@@ -402,25 +425,28 @@ def file_progress_ui(file_list, process):
         manager.add_file(*(file_list[index]))
         index += 1
 
-    for i in range(THREAD + 2):
-        add_next_file()
-
-    pause_all_button = ttk.Button(btn_frame, text="Pause", command=toggle_pause_all)
+    pause_all_button = ttk.Button(
+        btn_frame, text="Pause", style="White.TButton", command=pause_all
+    )
     pause_all_button.grid(row=0, column=0, padx=5, pady=5, sticky="w")
-    cancel_all_button = ttk.Button(btn_frame, text="Cancel", command=cancel_all)
+    cancel_all_button = ttk.Button(
+        btn_frame, text="Cancel", style="White.TButton", command=cancel_all
+    )
     cancel_all_button.grid(row=0, column=1, padx=5, pady=5, sticky="w")
     download_popup.update_idletasks()
-    width = download_popup.winfo_width()
-    height = download_popup.winfo_height()
+    width = download_popup.winfo_width() + 330
+    height = download_popup.winfo_height() + 140
     rootWidth = window.winfo_width()
     rootHeight = window.winfo_height()
     rootX = window.winfo_x()
     rootY = window.winfo_y()
     x = rootX + (rootWidth // 2) - (width // 2)
     y = rootY + (rootHeight // 2) - (height // 2)
-    download_popup.geometry(f"+{x}+{y}")
+    download_popup.geometry(f"{width}x{height}+{x}+{y}")
     download_popup.update_idletasks()
     download_popup.protocol("WM_DELETE_WINDOW", cancel_all)
+    for i in range(THREAD + 2):
+        add_next_file()
     manager.start()
 
     window.wait_window(download_popup)

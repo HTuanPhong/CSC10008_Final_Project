@@ -55,9 +55,9 @@ class DownloadManager:
                     with self.lock:
                         file_data = self.files[file_id]
                         file_data["bytes_done"] += length
-                        self.update(file_id, file_data["bytes_done"])
                         if file_data["bytes_done"] == file_data["size"]:
                             os.rename(temp_path, client_path)
+                    self.update(file_id, file_data["bytes_done"])
                     self.segment_queue.task_done()
         except (OSError, MessengerError) as e:
             print(e)
