@@ -372,6 +372,7 @@ def file_progress_ui(file_list, process):
         t.start()
 
     def cancel_all_thread():
+        not_pause.set()
         cancel_event.set()
         manager.stop()
         canvas.unbind_all("<MouseWheel>")
