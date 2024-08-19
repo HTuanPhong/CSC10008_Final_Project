@@ -50,20 +50,22 @@ SCROLL_FRAME_HEIGHT = 500
 window = customtkinter.CTk()
 window.title("File Transfer")
 window.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
-# window.minsize(940, 500)
+window.minsize(940, 500)
 bold_font = customtkinter.CTkFont(weight="bold", size=14)
 
+full_path = os.path.realpath(__file__)
+src_path = os.path.dirname(full_path)
 # ============================================================={{ MENU }}===========================================================
 # region Expand/Collapse Function
 # --------------------------------------------------// Image - Icon \\ --------------------------------------------------
 toggle_icon = customtkinter.CTkImage(
-    dark_image=Image.open("Image/menu.png"),
-    light_image=Image.open("Image/menu.png"),
+    dark_image=Image.open(src_path + "/Image/menu.png"),
+    light_image=Image.open(src_path + "/Image/menu.png"),
     size=(20, 20),
 )
 close_icon = customtkinter.CTkImage(
-    dark_image=Image.open("Image/close.png"),
-    light_image=Image.open("Image/close.png"),
+    dark_image=Image.open(src_path + "/Image/close.png"),
+    light_image=Image.open(src_path + "/Image/close.png"),
     size=(18, 18),
 )
 
@@ -178,13 +180,13 @@ toggle_button.place(x=5, y=10)
 
 # --------------------------------------------------// Image - Icon \\ --------------------------------------------------
 explorer_icon = customtkinter.CTkImage(
-    dark_image=Image.open("Image/explorer.png"),
-    light_image=Image.open("Image/explorer.png"),
+    dark_image=Image.open(src_path + "/Image/explorer.png"),
+    light_image=Image.open(src_path + "/Image/explorer.png"),
     size=(25, 25),
 )
 setting_icon = customtkinter.CTkImage(
-    dark_image=Image.open("Image/setting-lines.png"),
-    light_image=Image.open("Image/setting-lines.png"),
+    dark_image=Image.open(src_path + "/Image/setting-lines.png"),
+    light_image=Image.open(src_path + "/Image/setting-lines.png"),
     size=(25, 25),
 )
 
@@ -912,52 +914,52 @@ def find_image_file(filename):
 explorer_objects = {}
 
 # --------------------------------------------------- // Icon - Image \\ ----------------------------------------------------
-folder_image = Image.open("Image/folder.png")
+folder_image = Image.open(src_path + "/Image/folder.png")
 folder_image = ImageTk.PhotoImage(folder_image.resize((22, 22), Image.LANCZOS))
 
-pdf_image = Image.open("Image/pdfOnTree.png")
+pdf_image = Image.open(src_path + "/Image/pdfOnTree.png")
 pdf_image = ImageTk.PhotoImage(pdf_image.resize((20, 20), Image.LANCZOS))
 
-txt_image = Image.open("Image/txtFile.png")
+txt_image = Image.open(src_path + "/Image/txtFile.png")
 txt_image = ImageTk.PhotoImage(txt_image.resize((16, 16), Image.LANCZOS))
 
-pictureFile_image = Image.open("Image/picture.png")
+pictureFile_image = Image.open(src_path + "/Image/picture.png")
 pictureFile_image = ImageTk.PhotoImage(
     pictureFile_image.resize((20, 20), Image.LANCZOS)
 )
 
-coding_image = Image.open("Image/coding.png")
+coding_image = Image.open(src_path + "/Image/coding.png")
 coding_image = ImageTk.PhotoImage(coding_image.resize((24, 24), Image.LANCZOS))
 
-indefinite_image = Image.open("Image/new-document.png")
+indefinite_image = Image.open(src_path + "/Image/new-document.png")
 indefinite_image = ImageTk.PhotoImage(indefinite_image.resize((24, 24), Image.LANCZOS))
 
-recycle_bin_icon = Image.open("Image/recycle-bin.png")
+recycle_bin_icon = Image.open(src_path + "/Image/recycle-bin.png")
 recycle_bin_icon = customtkinter.CTkImage(
     recycle_bin_icon.resize((22, 22), Image.LANCZOS)
 )
 
-new_folder_icon = Image.open("Image/new-folder.png")
+new_folder_icon = Image.open(src_path + "/Image/new-folder.png")
 new_folder_icon = customtkinter.CTkImage(
     new_folder_icon.resize((24, 24), Image.LANCZOS)
 )
 
-download_file_icon = Image.open("Image/download.png")
+download_file_icon = Image.open(src_path + "/Image/download.png")
 download_file_icon = customtkinter.CTkImage(
     download_file_icon.resize((24, 24), Image.LANCZOS)
 )
 
-upload_file_icon = Image.open("Image/upload_file.png")
+upload_file_icon = Image.open(src_path + "/Image/upload_file.png")
 upload_file_icon = customtkinter.CTkImage(
     upload_file_icon.resize((24, 24), Image.LANCZOS)
 )
 
-upload_folder_icon = Image.open("Image/upload_folder.png")
+upload_folder_icon = Image.open(src_path + "/Image/upload_folder.png")
 upload_folder_icon = customtkinter.CTkImage(
     upload_folder_icon.resize((24, 24), Image.LANCZOS)
 )
 
-search_icon = Image.open("Image/search.png")
+search_icon = Image.open(src_path + "/Image/search.png")
 search_icon = customtkinter.CTkImage(search_icon.resize((24, 24), Image.LANCZOS))
 
 # ---------------------------------------------- // Frame \\ -----------------------------------------------------
@@ -1136,13 +1138,13 @@ client_information_frame.grid(row=1, column=0, padx=(6, 52), pady=(3, 6), sticky
 
 # -------------------------------------// Image \\ -------------------------------------
 server_image = customtkinter.CTkImage(
-    dark_image=Image.open("Image/sever.png"),
-    light_image=Image.open("Image/sever.png"),
+    dark_image=Image.open(src_path + "/Image/sever.png"),
+    light_image=Image.open(src_path + "/Image/sever.png"),
     size=(175, 150),
 )
 client_Image = customtkinter.CTkImage(
-    dark_image=Image.open("Image/computer.png"),
-    light_image=Image.open("Image/computer.png"),
+    dark_image=Image.open(src_path + "/Image/computer.png"),
+    light_image=Image.open(src_path + "/Image/computer.png"),
     size=(175, 150),
 )
 # -------------------------------------// Object \\ -------------------------------------
