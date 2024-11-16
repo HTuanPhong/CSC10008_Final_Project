@@ -34,7 +34,3 @@ Start client:
 ```
 python client.py
 ```
-
-## Quick start
-
-Thank you customtkinter for ruining this.
